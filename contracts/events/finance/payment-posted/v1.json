@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://erp.example.invalid/contracts/events/finance/payment-posted/v1.json",
+  "title": "finance.payment.posted.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "type",
+    "schema_version",
+    "aggregate_guid",
+    "aggregate_version",
+    "tenant_guid",
+    "legal_entity_guid",
+    "business_operation_guid",
+    "occurred_at",
+    "recorded_at",
+    "correlation_id",
+    "causation_id",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "const": "finance.payment.posted.v1"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "aggregate_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tenant_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "legal_entity_guid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "business_operation_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payment_guid",
+        "party_account_guid",
+        "payment_type",
+        "business_date",
+        "gross_base",
+        "journal_guid",
+        "unapplied_base",
+        "allocation_guids",
+        "allocations"
+      ],
+      "properties": {
+        "payment_guid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "party_account_guid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "payment_type": {
+          "enum": [
+            "CUSTOMER_RECEIPT",
+            "SUPPLIER_PAYMENT"
+          ]
+        },
+        "business_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "gross_base": {
+          "type": "string",
+          "pattern": "^\\d{1,14}(\\.\\d{1,6})?$"
+        },
+        "journal_guid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "unapplied_base": {
+          "type": "string",
+          "pattern": "^\\d{1,14}(\\.\\d{1,6})?$"
+        },
+        "allocation_guids": {
+          "type": "array",
+          "minItems": 0,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "allocations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "open_item_guid",
+              "amount_base"
+            ],
+            "properties": {
+              "open_item_guid": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "amount_base": {
+                "type": "string",
+                "pattern": "^\\d{1,14}(\\.\\d{1,6})?$"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

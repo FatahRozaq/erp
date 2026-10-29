@@ -1,0 +1,5175 @@
+openapi: 3.1.1
+info:
+  title: ERP Platform Foundation API
+  version: 1.0.0
+  description: Organization, IAM, party accounts and policy activation for Foundation
+    MVP.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/org-nodes:
+    post:
+      operationId: createOrgNode
+      x-permission: organization.manage
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrgNode'
+            example:
+              kind: BRANCH
+              parent_guid: 01990f5b-bbb9-7000-8000-000000000001
+              code: JKT01
+              name: Jakarta 01
+      responses:
+        '201':
+          description: Draft node; parent and scope are server validated.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgNode'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                kind: COMPANY
+                parent_guid: 01990f5b-bbb9-7000-8000-000000000001
+                code: PILOT-01
+                name: Pilot example
+                status: DRAFT
+                version: 1
+                scope_version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/org-nodes/{guid}/activate:
+    post:
+      operationId: activateOrgNode
+      x-permission: organization.activate
+      parameters:
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionReason'
+            example:
+              reason: example
+      responses:
+        '200':
+          description: Active node and new tenant scope version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgNode'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                kind: COMPANY
+                parent_guid: 01990f5b-bbb9-7000-8000-000000000001
+                code: PILOT-01
+                name: Pilot example
+                status: ACTIVE
+                version: 1
+                scope_version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/users/{guid}/role-grants:
+    post:
+      operationId: grantUserRole
+      x-permission: iam.role.assign
+      description: Grantor can only delegate a subset of their own effective permissions
+        and scope; privileged grants require another checker.
+      parameters:
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleGrantRequest'
+            example:
+              role_guid: 01990f5b-bbb9-7000-8000-000000000001
+              legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+              effective_from: '2026-10-28T10:00:00Z'
+              reason: example
+      responses:
+        '201':
+          description: Grant and incremented session version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGrant'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                user_guid: 01990f5b-bbb9-7000-8000-000000000001
+                role_guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                effective_from: '2026-10-28T10:00:00Z'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    get:
+      operationId: listUserRoleGrants
+      x-owner: platform
+      x-permission: iam.role.read
+      summary: Effective and historical grants, scoped to administrative authority.
+      parameters:
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+      responses:
+        '200':
+          description: Effective and historical grants, scoped to administrative authority.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGrantReadPage'
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000002
+                  role_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  effective_from: '2026-10-28'
+                  status: pilot-reference
+                  version: 1
+                next_cursor: null
+                watermark: '2026-10-28T10:00:00Z'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+  /api/v1/users/{guid}/suspend:
+    post:
+      operationId: suspendUser
+      x-permission: iam.user.suspend
+      parameters:
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionReason'
+            example:
+              reason: example
+      responses:
+        '200':
+          description: User suspended; old session version denied within 60 seconds.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserState'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: SUSPENDED
+                session_version: 1
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+  /api/v1/party-accounts:
+    post:
+      operationId: createPartyAccount
+      x-permission: master.party.manage
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePartyAccount'
+            example:
+              party_type: CUSTOMER
+              code: CUS-001
+              name: Contoh Pelanggan
+              currency: IDR
+              payment_term_days: 30
+      responses:
+        '201':
+          description: Draft entity-scoped account; sensitive fields are masked in
+            response.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyAccount'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                party_guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                party_type: CUSTOMER
+                code: PILOT-01
+                name: Pilot example
+                status: DRAFT
+                currency: IDR
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/party-accounts/{guid}/publish:
+    post:
+      operationId: publishPartyAccount
+      x-permission: master.party.publish
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionReason'
+            example:
+              reason: example
+      responses:
+        '200':
+          description: Published account snapshot for future transactions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyAccount'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                party_guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                party_type: CUSTOMER
+                code: PILOT-01
+                name: Pilot example
+                status: ACTIVE
+                currency: IDR
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/policies/simulations:
+    post:
+      operationId: simulatePolicy
+      x-permission: policy.simulate
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicySimulation'
+            example:
+              policy_guid: 01990f5b-bbb9-7000-8000-000000000001
+              policy_type: TAX
+              business_date: '2026-10-28'
+              fixture:
+                party_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                transaction_type: SALE
+                taxable_net: '120000'
+      responses:
+        '200':
+          description: Read-only matched rule and result; no policy activation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationResult'
+              example:
+                policy_guid: 01990f5b-bbb9-7000-8000-000000000001
+                policy_type: TAX
+                matched_rule_guid: 01990f5b-bbb9-7000-8000-000000000001
+                result_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                outcome: PASS
+                result:
+                  dpp_base: '110000'
+                  vat_base: '13200'
+                  gross_base: '133200'
+                  rule_guid: 01990f5b-bbb9-7000-8000-000000000001
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/policies/{guid}/activate:
+    post:
+      operationId: activatePolicy
+      x-permission: policy.activate
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivatePolicy'
+            example:
+              effective_from: '2026-10-28'
+              simulation_result_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              reason: example
+      responses:
+        '200':
+          description: Activation version; prior version remains historical.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyActivation'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                policy_guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                effective_from: '2026-10-28'
+                status: ACTIVE
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/tax-quotes:
+    post:
+      operationId: quoteTax
+      x-permission: tax.quote
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxQuoteRequest'
+            example:
+              business_date: '2026-10-28'
+              party_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+              transaction_type: SALE
+              taxable_net: '120000'
+      responses:
+        '200':
+          description: Quote and immutable rule version reference; issue recalculates
+            under transaction.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxQuote'
+              example:
+                rule_version_guid: 01990f5b-bbb9-7000-8000-000000000001
+                taxable_net: '1'
+                dpp: '1'
+                tax: '1'
+                gross: '1'
+                currency: IDR
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/org-nodes/{guid}/deactivate:
+    post:
+      operationId: deactivateOrgNode
+      x-owner: platform
+      x-permission: organization.manage
+      summary: 'deactivateOrgNode: INACTIVE'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: INACTIVE state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: INACTIVE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: ORG_NODE_IN_USE
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - ORG_NODE_IN_USE
+  /api/v1/org-nodes/{guid}/branch-warehouse-assignments:
+    post:
+      operationId: assignBranchWarehouse
+      x-owner: platform
+      x-permission: organization.manage
+      summary: 'assignBranchWarehouse: ACTIVE'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                branch_guid:
+                  type: string
+                  format: uuid
+                warehouse_guid:
+                  type: string
+                  format: uuid
+                effective_from:
+                  type: string
+                  format: date
+                effective_to:
+                  type:
+                  - string
+                  - 'null'
+                  format: date
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - branch_guid
+              - warehouse_guid
+              - effective_from
+              - reason
+            example:
+              branch_guid: 01990f5b-bbb9-7000-8000-000000000002
+              warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+              effective_from: '2026-10-28'
+              reason: Approved for pilot
+      responses:
+        '201':
+          description: ACTIVE state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: WAREHOUSE_ENTITY_MISMATCH
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - WAREHOUSE_ENTITY_MISMATCH
+      - ORG_EFFECTIVE_OVERLAP
+  /api/v1/org-nodes/{guid}:
+    get:
+      operationId: getOrgNode
+      x-owner: platform
+      x-permission: organization.read
+      summary: Tenant scoped organization node including parent, effective interval
+        and version.
+      parameters:
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Tenant scoped organization node including parent, effective
+            interval and version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgNodeRead'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000002
+                parent_guid: 01990f5b-bbb9-7000-8000-000000000002
+                kind: pilot-reference
+                code: PILOT-01
+                name: Pilot entity
+                status: pilot-reference
+                effective_from: '2026-10-28'
+                version: 1
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+    patch:
+      operationId: updateOrgNode
+      x-owner: platform
+      x-permission: organization.manage
+      summary: 'updateOrgNode: DRAFT'
+      parameters:
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                effective_from:
+                  type: string
+                  format: date
+                effective_to:
+                  type:
+                  - string
+                  - 'null'
+                  format: date
+              minProperties: 1
+            example:
+              name: Pilot entity
+      responses:
+        '200':
+          description: DRAFT state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: ORG_NODE_IN_USE
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - ORG_NODE_IN_USE
+  /api/v1/users/invitations:
+    post:
+      operationId: inviteUser
+      x-owner: platform
+      x-permission: iam.user.invite
+      summary: 'inviteUser: INVITED'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 320
+                role_guid:
+                  type: string
+                  format: uuid
+                legal_entity_guid:
+                  type: string
+                  format: uuid
+                branch_guid:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - email
+              - role_guid
+              - legal_entity_guid
+              - reason
+            example:
+              email: staff@example.invalid
+              role_guid: 01990f5b-bbb9-7000-8000-000000000002
+              legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000002
+              reason: Approved for pilot
+      responses:
+        '201':
+          description: INVITED state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: INVITED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: IAM_EMAIL_EXISTS
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - IAM_EMAIL_EXISTS
+      - IAM_SCOPE_ESCALATION
+  /api/v1/users/{guid}:
+    get:
+      operationId: getUserState
+      x-owner: platform
+      x-permission: iam.user.read
+      summary: Scoped user state; no raw credential or token.
+      parameters:
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Scoped user state; no raw credential or token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000002
+                display_name: pilot-reference
+                status: pilot-reference
+                session_version: 1
+                version: 1
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+  /api/v1/users/{guid}/role-grants/{grant_guid}/revoke:
+    post:
+      operationId: revokeUserRoleGrant
+      x-owner: platform
+      x-permission: iam.role.assign
+      summary: 'revokeUserRoleGrant: REVOKED'
+      parameters:
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: grant_guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: REVOKED state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: REVOKED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: IAM_LAST_ADMIN
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - IAM_LAST_ADMIN
+      - IAM_SCOPE_ESCALATION
+  /api/v1/users/{guid}/revoke-sessions:
+    post:
+      operationId: revokeUserSessions
+      x-owner: platform
+      x-permission: iam.session.revoke
+      summary: 'revokeUserSessions: REVOKED'
+      parameters:
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: REVOKED state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: REVOKED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: IAM_USER_INACTIVE
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - IAM_USER_INACTIVE
+  /api/v1/me/sessions:
+    get:
+      operationId: listOwnSessions
+      x-owner: platform
+      x-permission: iam.session.read
+      summary: Current own sessions; device metadata masked, never token material.
+      parameters: []
+      responses:
+        '200':
+          description: Current own sessions; device metadata masked, never token material.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionReadPage'
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000002
+                  device_label: pilot-reference
+                  last_seen_at: '2026-10-28T10:00:00Z'
+                  expires_at: '2026-10-28T10:00:00Z'
+                  status: pilot-reference
+                next_cursor: null
+                watermark: '2026-10-28T10:00:00Z'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+  /api/v1/roles:
+    post:
+      operationId: createRole
+      x-owner: platform
+      x-permission: iam.role.manage
+      summary: 'createRole: DRAFT'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                permissions:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+              required:
+              - code
+              - name
+              - permissions
+            example:
+              code: PILOT-01
+              name: Pilot entity
+              permissions:
+              - sales.order.read
+      responses:
+        '201':
+          description: DRAFT state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: IAM_ROLE_EXISTS
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - IAM_ROLE_EXISTS
+    get:
+      operationId: listRoles
+      x-owner: platform
+      x-permission: iam.role.read
+      summary: Role catalog and permission version within tenant scope.
+      parameters:
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+      responses:
+        '200':
+          description: Role catalog and permission version within tenant scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleReadPage'
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000002
+                  code: PILOT-01
+                  name: Pilot entity
+                  status: pilot-reference
+                  permissions:
+                  - sales.order.read
+                  version: 1
+                next_cursor: null
+                watermark: '2026-10-28T10:00:00Z'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+  /api/v1/roles/{guid}/publish:
+    post:
+      operationId: publishRole
+      x-owner: platform
+      x-permission: iam.role.manage
+      summary: 'publishRole: ACTIVE'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: ACTIVE state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: IAM_ROLE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - IAM_ROLE_CONFLICT
+  /api/v1/party-accounts/{guid}:
+    get:
+      operationId: getPartyAccount
+      x-owner: platform
+      x-permission: master.party.read
+      summary: Entity account with masked bank/tax fields and current version.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Entity account with masked bank/tax fields and current version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyAccountRead'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000002
+                party_guid: 01990f5b-bbb9-7000-8000-000000000002
+                party_type: pilot-reference
+                code: PILOT-01
+                name: Pilot entity
+                status: DRAFT
+                payment_term_days: 1
+                version: 1
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+    patch:
+      operationId: updatePartyAccount
+      x-owner: platform
+      x-permission: master.party.manage
+      summary: 'updatePartyAccount: DRAFT'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                payment_term_days:
+                  type: integer
+                  minimum: 0
+                status:
+                  type: string
+                  enum:
+                  - DRAFT
+                  - ACTIVE
+                  - BLOCKED
+                  - INACTIVE
+              minProperties: 1
+            example:
+              name: Pilot entity
+      responses:
+        '200':
+          description: DRAFT state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PARTY_ACCOUNT_IN_USE
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PARTY_ACCOUNT_IN_USE
+  /api/v1/party-accounts/{guid}/sensitive-changes:
+    post:
+      operationId: proposePartySensitiveChange
+      x-owner: platform
+      x-permission: master.party.manage
+      summary: 'proposePartySensitiveChange: PENDING_APPROVAL'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                field:
+                  type: string
+                  enum:
+                  - BANK_ACCOUNT
+                  - TAX_ID
+                  - CREDIT_LIMIT
+                encrypted_value_ref:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - field
+              - encrypted_value_ref
+              - reason
+            example:
+              field: BANK_ACCOUNT
+              encrypted_value_ref: pilot-reference
+              reason: Approved for pilot
+      responses:
+        '201':
+          description: PENDING_APPROVAL state committed by Platform; fetch aggregate
+            for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PENDING_APPROVAL
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PARTY_SENSITIVE_CHANGE_PENDING
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PARTY_SENSITIVE_CHANGE_PENDING
+  /api/v1/party-accounts/{guid}/sensitive-changes/{change_guid}/approve:
+    post:
+      operationId: approvePartySensitiveChange
+      x-owner: platform
+      x-permission: master.sensitive.approve
+      summary: 'approvePartySensitiveChange: APPROVED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: change_guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: APPROVED state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: APPROVAL_SOD_VIOLATION
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - APPROVAL_SOD_VIOLATION
+  /api/v1/party-accounts/{guid}/deactivate:
+    post:
+      operationId: deactivatePartyAccount
+      x-owner: platform
+      x-permission: master.party.manage
+      summary: 'deactivatePartyAccount: INACTIVE'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: INACTIVE state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: INACTIVE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PARTY_ACCOUNT_IN_USE
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PARTY_ACCOUNT_IN_USE
+  /api/v1/parties/{guid}/merge:
+    post:
+      operationId: mergePartyIdentity
+      x-owner: platform
+      x-permission: master.party.merge
+      summary: 'mergePartyIdentity: MERGED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                target_party_guid:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - target_party_guid
+              - reason
+            example:
+              target_party_guid: 01990f5b-bbb9-7000-8000-000000000002
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: MERGED state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: MERGED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PARTY_DUPLICATE_ACCOUNT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PARTY_DUPLICATE_ACCOUNT
+      - PARTY_TYPE_MISMATCH
+  /api/v1/price-rules:
+    post:
+      operationId: createPriceRule
+      x-owner: platform
+      x-permission: policy.price.manage
+      summary: 'createPriceRule: DRAFT'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                sku_guid:
+                  type: string
+                  format: uuid
+                currency:
+                  type: string
+                  pattern: ^[A-Z]{3}$
+                unit_price:
+                  type: string
+                  pattern: ^-?\d{1,14}(\.\d{1,6})?$
+                customer_account_guid:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+                segment_code:
+                  type:
+                  - string
+                  - 'null'
+                  maxLength: 500
+                effective_from:
+                  type: string
+                  format: date
+                effective_to:
+                  type:
+                  - string
+                  - 'null'
+                  format: date
+              required:
+              - sku_guid
+              - currency
+              - unit_price
+              - effective_from
+            example:
+              sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+              currency: IDR
+              unit_price: '100.00'
+              effective_from: '2026-10-28'
+      responses:
+        '201':
+          description: DRAFT state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PRICE_RULE_OVERLAP
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PRICE_RULE_OVERLAP
+  /api/v1/price-rules/{guid}/publish:
+    post:
+      operationId: publishPriceRule
+      x-owner: platform
+      x-permission: policy.price.publish
+      summary: 'publishPriceRule: PUBLISHED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                simulation_hash:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - simulation_hash
+              - reason
+            example:
+              simulation_hash: pilot-reference
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: PUBLISHED state committed by Platform; fetch aggregate for
+            full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PUBLISHED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PRICE_RULE_OVERLAP
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PRICE_RULE_OVERLAP
+      - COST_FLOOR_MISSING
+  /api/v1/price-quotes:
+    post:
+      operationId: quotePrice
+      x-owner: platform
+      x-permission: price.quote
+      summary: 'quotePrice: QUOTED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                sku_guid:
+                  type: string
+                  format: uuid
+                customer_account_guid:
+                  type: string
+                  format: uuid
+                quantity_base:
+                  type: string
+                  pattern: ^-?\d{1,14}(\.\d{1,6})?$
+                business_date:
+                  type: string
+                  format: date
+                currency:
+                  type: string
+                  pattern: ^[A-Z]{3}$
+              required:
+              - sku_guid
+              - customer_account_guid
+              - quantity_base
+              - business_date
+              - currency
+            example:
+              sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+              customer_account_guid: 01990f5b-bbb9-7000-8000-000000000002
+              quantity_base: '100.00'
+              business_date: '2026-10-28'
+              currency: IDR
+      responses:
+        '200':
+          description: QUOTED state committed by Platform; fetch aggregate for full
+            detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceQuoteRead'
+              example:
+                sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                customer_account_guid: 01990f5b-bbb9-7000-8000-000000000002
+                quantity_base: '2'
+                unit_price: '100'
+                net_base: '200'
+                currency: IDR
+                rule_guid: 01990f5b-bbb9-7000-8000-000000000001
+                rule_version: 1
+                watermark: '2026-10-28T10:00:00Z'
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable;
+            code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PRICE_RULE_MISSING
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PRICE_RULE_MISSING
+      - PRICE_RULE_AMBIGUOUS
+  /api/v1/policies:
+    post:
+      operationId: createPolicyVersion
+      x-permission: policy.manage
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicy'
+            example:
+              policy_type: TAX
+              code: VAT-ID-PILOT
+              content:
+                jurisdiction: ID
+                entity_pkp: true
+                rules:
+                - party_tax_class: STANDARD
+                  sku_tax_class: NON_LUXURY
+                  transaction_type: SALE
+                  vat_rate: '0.12'
+                  dpp_numerator: 11
+                  dpp_denominator: 12
+                  rounding: HALF_UP
+      responses:
+        '201':
+          description: Immutable draft version identifier; no activation.
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"1"'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersion'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                policy_type: TAX
+                code: VAT-ID-PILOT
+                status: DRAFT
+                content_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                version: 1
+        default:
+          description: Stable 400/401/403/404/409/412/422/429/503 error as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: POLICY_NOT_ACTIVE
+                message: Policy cannot be used
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/policies/{guid}:
+    get:
+      operationId: getPolicyVersion
+      x-permission: policy.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Version metadata; content retrieved only by policy owner with
+            separate permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersion'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                policy_type: TAX
+                code: VAT-ID-PILOT
+                status: DRAFT
+                content_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                version: 1
+        default:
+          description: Stable 400/401/403/404/409/412/422/429/503 error as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: POLICY_NOT_ACTIVE
+                message: Policy cannot be used
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/policies/{guid}/publish:
+    post:
+      operationId: publishPolicyVersion
+      x-permission: policy.publish
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishPolicy'
+            example:
+              simulation_result_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              reason: Simulation accepted by process owner
+      responses:
+        '200':
+          description: PUBLISHED immutable policy version, still requires activation
+            per entity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersion'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                policy_type: TAX
+                code: VAT-ID-PILOT
+                status: PUBLISHED
+                content_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                version: 2
+        default:
+          description: Stable 400/401/403/404/409/412/422/429/503 error as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: POLICY_NOT_ACTIVE
+                message: Policy cannot be used
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/devices/push:
+    post:
+      operationId: registerPushDevice
+      x-owner: platform
+      x-stage: P2
+      x-permission: notification.device.register
+      x-error-codes:
+      - NOTIFICATION_MANDATORY
+      summary: registerPushDevice — ACTIVE; authoritative owner state and idempotent
+        retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - device_guid
+              - push_token
+              - platform
+              properties:
+                device_guid:
+                  type: string
+                  format: uuid
+                push_token:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                platform:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              device_guid: 01990f5b-bbb9-7000-8000-000000000001
+              push_token: encrypted-token-reference
+              platform: ANDROID
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/notifications/preferences:
+    post:
+      operationId: setNotificationPreference
+      x-owner: platform
+      x-stage: P2
+      x-permission: notification.preference.manage
+      x-error-codes:
+      - NOTIFICATION_MANDATORY
+      summary: setNotificationPreference — ACTIVE; authoritative owner state and idempotent
+        retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - category
+              - channel
+              - enabled
+              - quiet_hours_start
+              - quiet_hours_end
+              properties:
+                category:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                channel:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                enabled:
+                  type: boolean
+                quiet_hours_start:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                quiet_hours_end:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              category: ORDER_STATUS
+              channel: PUSH
+              enabled: true
+              quiet_hours_start: '22:00'
+              quiet_hours_end: 07:00
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/reports/operations:
+    get:
+      operationId: getOperationsReport
+      x-owner: platform
+      x-stage: P2
+      x-permission: report.operations.read
+      x-error-codes:
+      - REPORT_SOURCE_STALE
+      summary: getOperationsReport — READY; authoritative owner state and idempotent
+        retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: report_type
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 500
+        example: TRANSFER_RECONCILIATION
+      - name: as_of
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        example: '2026-11-01T10:00:00Z'
+      responses:
+        '200':
+          description: Scoped read-only snapshot with source watermark.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - status
+                - as_of
+                - watermark
+                - formula_version
+                - items
+                properties:
+                  status:
+                    type: string
+                  as_of:
+                    type: string
+                    format: date-time
+                  watermark:
+                    type: integer
+                    minimum: 0
+                  formula_version:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - code
+                      - value_base
+                      properties:
+                        code:
+                          type: string
+                        value_base:
+                          type: string
+                          pattern: ^\d{1,14}(\.\d{1,6})?$
+              example:
+                status: READY
+                as_of: '2026-11-01T10:00:00Z'
+                watermark: 100
+                formula_version: v1
+                items:
+                - code: PILOT
+                  value_base: '100.000000'
+        default:
+          description: Stable ERP error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/approval-graphs:
+    post:
+      operationId: publishApprovalGraph
+      x-owner: platform
+      x-stage: P3
+      x-permission: policy.approval_graph.publish
+      x-error-codes:
+      - APPROVAL_QUORUM_INVALID
+      - APPROVAL_SOD_VIOLATION
+      summary: publishApprovalGraph — PUBLISHED; authoritative owner state and idempotent
+        retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - policy_version_guid
+              - source_type
+              - quorum_type
+              - quorum_n
+              - assignee_role_guids
+              - effective_from
+              - simulation_hash
+              properties:
+                policy_version_guid:
+                  type: string
+                  format: uuid
+                source_type:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                quorum_type:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                quorum_n:
+                  type: integer
+                  minimum: 0
+                assignee_role_guids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: string
+                    format: uuid
+                effective_from:
+                  type: string
+                  format: date
+                simulation_hash:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+            example:
+              policy_version_guid: 01990f5b-bbb9-7000-8000-000000000001
+              source_type: PURCHASE_ORDER
+              quorum_type: N_OF_M
+              quorum_n: 2
+              assignee_role_guids:
+              - 01990f5b-bbb9-7000-8000-000000000001
+              - 01990f5b-bbb9-7000-8000-000000000002
+              effective_from: '2026-11-01'
+              simulation_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PUBLISHED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: platform
+      x-stage: P3
+      x-permission: policy.approval_graph.read
+      summary: Read scoped ApprovalGraph state; owner is authoritative.
+      operationId: listApprovalGraphs
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - policy_version_guid
+                          - source_type
+                          - quorum_type
+                          - quorum_n
+                          - assignee_role_guids
+                          - effective_from
+                          - simulation_hash
+                          properties:
+                            policy_version_guid:
+                              type: string
+                              format: uuid
+                            source_type:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            quorum_type:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            quorum_n:
+                              type: integer
+                              minimum: 0
+                            assignee_role_guids:
+                              type: array
+                              minItems: 1
+                              maxItems: 200
+                              items:
+                                type: string
+                                format: uuid
+                            effective_from:
+                              type: string
+                              format: date
+                            simulation_hash:
+                              type: string
+                              pattern: ^[a-f0-9]{64}$
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    policy_version_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    source_type: PURCHASE_ORDER
+                    quorum_type: N_OF_M
+                    quorum_n: 2
+                    assignee_role_guids:
+                    - 01990f5b-bbb9-7000-8000-000000000001
+                    - 01990f5b-bbb9-7000-8000-000000000002
+                    effective_from: '2026-11-01'
+                    simulation_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/approval-instances/{guid}/decisions:
+    post:
+      operationId: decideApprovalStage
+      x-owner: platform
+      x-stage: P3
+      x-permission: policy.approval.decide
+      x-error-codes:
+      - APPROVAL_QUORUM_INVALID
+      - APPROVAL_SOD_VIOLATION
+      summary: decideApprovalStage — APPROVED; authoritative owner state and idempotent
+        retry.
+      x-emits:
+      - policy.approval.stage_decided.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - source_revision
+              - stage_guid
+              - decision
+              - reason
+              properties:
+                source_revision:
+                  type: integer
+                  minimum: 0
+                stage_guid:
+                  type: string
+                  format: uuid
+                decision:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              source_revision: 2
+              stage_guid: 01990f5b-bbb9-7000-8000-000000000001
+              decision: APPROVE
+              reason: Checked source revision
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/approval-delegations:
+    post:
+      operationId: delegateApproval
+      x-owner: platform
+      x-stage: P3
+      x-permission: policy.approval.delegate
+      x-error-codes:
+      - APPROVAL_QUORUM_INVALID
+      - APPROVAL_SOD_VIOLATION
+      summary: delegateApproval — ACTIVE; authoritative owner state and idempotent
+        retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - delegator_guid
+              - delegatee_guid
+              - scope_hash
+              - effective_from
+              - effective_until
+              - reason
+              properties:
+                delegator_guid:
+                  type: string
+                  format: uuid
+                delegatee_guid:
+                  type: string
+                  format: uuid
+                scope_hash:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                effective_from:
+                  type: string
+                  format: date-time
+                effective_until:
+                  type: string
+                  format: date-time
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              delegator_guid: 01990f5b-bbb9-7000-8000-000000000001
+              delegatee_guid: 01990f5b-bbb9-7000-8000-000000000002
+              scope_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              effective_from: '2026-11-01T10:00:00Z'
+              effective_until: '2026-11-02T10:00:00Z'
+              reason: Coverage during absence
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/report-schedules:
+    post:
+      operationId: createReportSchedule
+      x-owner: platform
+      x-stage: P3
+      x-permission: report.schedule.create
+      x-error-codes:
+      - SCHEDULE_SCOPE_INVALID
+      summary: createReportSchedule — DRAFT; authoritative owner state and idempotent
+        retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - report_type
+              - cron
+              - timezone
+              - scope_hash
+              - query_hash
+              properties:
+                report_type:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                cron:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                timezone:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                scope_hash:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                query_hash:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+            example:
+              report_type: AR_AGING
+              cron: 0 7 * * 1
+              timezone: Asia/Jakarta
+              scope_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              query_hash: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: platform
+      x-stage: P3
+      x-permission: report.schedule.read
+      summary: Read scoped ReportSchedule state; owner is authoritative.
+      operationId: listReportSchedules
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - report_type
+                          - cron
+                          - timezone
+                          - scope_hash
+                          - query_hash
+                          properties:
+                            report_type:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            cron:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            timezone:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            scope_hash:
+                              type: string
+                              pattern: ^[a-f0-9]{64}$
+                            query_hash:
+                              type: string
+                              pattern: ^[a-f0-9]{64}$
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    report_type: AR_AGING
+                    cron: 0 7 * * 1
+                    timezone: Asia/Jakarta
+                    scope_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    query_hash: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/report-schedules/{guid}/activate:
+    post:
+      operationId: activateReportSchedule
+      x-owner: platform
+      x-stage: P3
+      x-permission: report.schedule.activate
+      x-error-codes:
+      - SCHEDULE_SCOPE_INVALID
+      summary: activateReportSchedule — ACTIVE; authoritative owner state and idempotent
+        retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              reason: Audience and scope verified
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/connectors:
+    post:
+      operationId: registerConnector
+      x-owner: platform
+      x-stage: P3
+      x-permission: integration.connector.manage
+      x-error-codes:
+      - CONNECTOR_SIGNATURE_INVALID
+      summary: registerConnector — DRAFT; authoritative owner state and idempotent
+        retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - connector_type
+              - target_host
+              - mapping_version
+              - secret_ref
+              properties:
+                connector_type:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                target_host:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                mapping_version:
+                  type: integer
+                  minimum: 0
+                secret_ref:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              connector_type: BANK_WEBHOOK
+              target_host: provider.example.invalid
+              mapping_version: 1
+              secret_ref: vault://erp/connector/1
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: platform
+      x-stage: P3
+      x-permission: integration.connector.read
+      summary: Read scoped Connector state; owner is authoritative.
+      operationId: listConnectors
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - connector_type
+                          - target_host
+                          - mapping_version
+                          - secret_ref
+                          properties:
+                            connector_type:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            target_host:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            mapping_version:
+                              type: integer
+                              minimum: 0
+                            secret_ref:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    connector_type: BANK_WEBHOOK
+                    target_host: provider.example.invalid
+                    mapping_version: 1
+                    secret_ref: vault://erp/connector/1
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/connectors/{guid}/events:
+    post:
+      operationId: ingestConnectorEvent
+      x-owner: platform
+      x-stage: P3
+      x-permission: integration.connector.ingest
+      x-error-codes:
+      - CONNECTOR_SIGNATURE_INVALID
+      description: Provider-specific HMAC over raw body, timestamp and external ID,
+        connector allowlist and replay window are verified before mapping. No bearer
+        token is expected from the external provider.
+      summary: ingestConnectorEvent — ACCEPTED; authoritative owner state and idempotent
+        retry.
+      x-emits:
+      - platform.connector.event_accepted.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: X-ERP-Signature
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 32
+      - name: X-ERP-Timestamp
+        in: header
+        required: true
+        schema:
+          type: string
+          format: date-time
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - external_id
+              - occurred_at
+              - payload
+              properties:
+                external_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                occurred_at:
+                  type: string
+                  format: date-time
+                payload:
+                  type: object
+                  additionalProperties: false
+                  required:
+                  - type
+                  - reference
+                  properties:
+                    type:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                    reference:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+            example:
+              external_id: evt-001
+              occurred_at: '2026-11-01T10:00:00Z'
+              payload:
+                type: PAYMENT_SETTLED
+                reference: PILOT-001
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending
+            operation; inspect the resource before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACCEPTED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      security:
+      - webhookHmac: []
+  /api/v1/approval-graphs/{guid}:
+    get:
+      x-owner: platform
+      x-stage: P3
+      x-permission: policy.approval_graph.read
+      summary: Read scoped ApprovalGraph state; owner is authoritative.
+      operationId: getApprovalGraph
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - policy_version_guid
+                    - source_type
+                    - quorum_type
+                    - quorum_n
+                    - assignee_role_guids
+                    - effective_from
+                    - simulation_hash
+                    properties:
+                      policy_version_guid:
+                        type: string
+                        format: uuid
+                      source_type:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      quorum_type:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      quorum_n:
+                        type: integer
+                        minimum: 0
+                      assignee_role_guids:
+                        type: array
+                        minItems: 1
+                        maxItems: 200
+                        items:
+                          type: string
+                          format: uuid
+                      effective_from:
+                        type: string
+                        format: date
+                      simulation_hash:
+                        type: string
+                        pattern: ^[a-f0-9]{64}$
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  policy_version_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  source_type: PURCHASE_ORDER
+                  quorum_type: N_OF_M
+                  quorum_n: 2
+                  assignee_role_guids:
+                  - 01990f5b-bbb9-7000-8000-000000000001
+                  - 01990f5b-bbb9-7000-8000-000000000002
+                  effective_from: '2026-11-01'
+                  simulation_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/report-schedules/{guid}:
+    get:
+      x-owner: platform
+      x-stage: P3
+      x-permission: report.schedule.read
+      summary: Read scoped ReportSchedule state; owner is authoritative.
+      operationId: getReportSchedule
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - report_type
+                    - cron
+                    - timezone
+                    - scope_hash
+                    - query_hash
+                    properties:
+                      report_type:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      cron:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      timezone:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      scope_hash:
+                        type: string
+                        pattern: ^[a-f0-9]{64}$
+                      query_hash:
+                        type: string
+                        pattern: ^[a-f0-9]{64}$
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  report_type: AR_AGING
+                  cron: 0 7 * * 1
+                  timezone: Asia/Jakarta
+                  scope_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                  query_hash: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/connectors/{guid}:
+    get:
+      x-owner: platform
+      x-stage: P3
+      x-permission: integration.connector.read
+      summary: Read scoped Connector state; owner is authoritative.
+      operationId: getConnector
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - connector_type
+                    - target_host
+                    - mapping_version
+                    - secret_ref
+                    properties:
+                      connector_type:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      target_host:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      mapping_version:
+                        type: integer
+                        minimum: 0
+                      secret_ref:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  connector_type: BANK_WEBHOOK
+                  target_host: provider.example.invalid
+                  mapping_version: 1
+                  secret_ref: vault://erp/connector/1
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+components:
+  securitySchemes:
+    webhookHmac:
+      type: apiKey
+      in: header
+      name: X-ERP-Signature
+      description: HMAC-SHA256 signature bound to X-ERP-Timestamp and raw request
+        body; connector-specific secret and replay window are enforced by Platform.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Entity:
+      name: X-Legal-Entity-Guid
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Guid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^"[1-9][0-9]*"$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable domain error; response body never contains secret or unmasked
+        PII.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: ORG_PARENT_INVALID
+            message: Invalid parent
+            details: {}
+            request_id: req-01990f5b
+  schemas:
+    Decimal:
+      type: string
+      pattern: ^-?\d{1,14}(\.\d{1,6})?$
+    DecisionReason:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    CreateOrgNode:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - parent_guid
+      - code
+      - name
+      properties:
+        kind:
+          type: string
+          enum:
+          - COMPANY
+          - LEGAL_ENTITY
+          - BRANCH
+          - WAREHOUSE
+        parent_guid:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+    OrgNode:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - kind
+      - parent_guid
+      - code
+      - name
+      - status
+      - version
+      - scope_version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - COMPANY
+          - LEGAL_ENTITY
+          - BRANCH
+          - WAREHOUSE
+        parent_guid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - INACTIVE
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        scope_version:
+          type: integer
+          format: int64
+          minimum: 1
+    RoleGrantRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - role_guid
+      - legal_entity_guid
+      - effective_from
+      - reason
+      properties:
+        role_guid:
+          type: string
+          format: uuid
+        legal_entity_guid:
+          type: string
+          format: uuid
+        branch_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        warehouse_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        effective_from:
+          type: string
+          format: date-time
+        effective_to:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    RoleGrant:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - user_guid
+      - role_guid
+      - legal_entity_guid
+      - effective_from
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        user_guid:
+          type: string
+          format: uuid
+        role_guid:
+          type: string
+          format: uuid
+        legal_entity_guid:
+          type: string
+          format: uuid
+        effective_from:
+          type: string
+          format: date-time
+        effective_to:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+    UserState:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - session_version
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - INVITED
+          - ACTIVE
+          - SUSPENDED
+          - DEACTIVATED
+        session_version:
+          type: integer
+          minimum: 1
+        version:
+          type: integer
+          minimum: 1
+    CreatePartyAccount:
+      type: object
+      additionalProperties: false
+      required:
+      - party_type
+      - code
+      - name
+      - currency
+      - payment_term_days
+      properties:
+        party_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Existing tenant party to attach to this legal entity; absent
+            creates the party.
+        party_type:
+          type: string
+          enum:
+          - CUSTOMER
+          - VENDOR
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        payment_term_days:
+          type: integer
+          minimum: 0
+          maximum: 365
+        tax_profile_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    PartyAccount:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - party_guid
+      - legal_entity_guid
+      - party_type
+      - code
+      - name
+      - status
+      - currency
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        party_guid:
+          type: string
+          format: uuid
+        legal_entity_guid:
+          type: string
+          format: uuid
+        party_type:
+          type: string
+          enum:
+          - CUSTOMER
+          - VENDOR
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - BLOCKED
+          - INACTIVE
+        currency:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+    PolicySimulation:
+      type: object
+      additionalProperties: false
+      required:
+      - policy_guid
+      - policy_type
+      - business_date
+      - fixture
+      properties:
+        policy_guid:
+          type: string
+          format: uuid
+        policy_type:
+          type: string
+          enum:
+          - TAX
+          - PRICE
+          - CREDIT
+          - APPROVAL
+          - POSTING
+          - NUMBERING
+        business_date:
+          type: string
+          format: date
+        fixture:
+          description: Type must match policy_type; mismatch is POLICY_FIXTURE_TYPE_MISMATCH.
+          oneOf:
+          - $ref: '#/components/schemas/TaxFixture'
+          - $ref: '#/components/schemas/PriceFixture'
+          - $ref: '#/components/schemas/CreditFixture'
+          - $ref: '#/components/schemas/ApprovalFixture'
+          - $ref: '#/components/schemas/PostingFixture'
+          - $ref: '#/components/schemas/NumberingFixture'
+    TaxFixture:
+      type: object
+      additionalProperties: false
+      required:
+      - party_account_guid
+      - sku_guid
+      - transaction_type
+      - taxable_net
+      properties:
+        party_account_guid:
+          type: string
+          format: uuid
+        sku_guid:
+          type: string
+          format: uuid
+        transaction_type:
+          type: string
+          enum:
+          - SALE
+          - PURCHASE
+          - CREDIT_MEMO
+        taxable_net:
+          $ref: '#/components/schemas/Decimal'
+    PriceFixture:
+      type: object
+      additionalProperties: false
+      required:
+      - customer_account_guid
+      - sku_guid
+      - qty_base
+      - manual_discount_percent
+      - cost_snapshot_base
+      properties:
+        customer_account_guid:
+          type: string
+          format: uuid
+        sku_guid:
+          type: string
+          format: uuid
+        qty_base:
+          $ref: '#/components/schemas/Decimal'
+        manual_discount_percent:
+          $ref: '#/components/schemas/Decimal'
+        cost_snapshot_base:
+          $ref: '#/components/schemas/Decimal'
+    CreditFixture:
+      type: object
+      additionalProperties: false
+      required:
+      - customer_account_guid
+      - gross_buckets_base
+      - eligible_deposit_base
+      - new_commitment_gross_base
+      properties:
+        customer_account_guid:
+          type: string
+          format: uuid
+        gross_buckets_base:
+          $ref: '#/components/schemas/Decimal'
+        eligible_deposit_base:
+          $ref: '#/components/schemas/Decimal'
+        new_commitment_gross_base:
+          $ref: '#/components/schemas/Decimal'
+    ApprovalFixture:
+      type: object
+      additionalProperties: false
+      required:
+      - source_type
+      - gross_total_base
+      - manual_discount_percent
+      - maker_guid
+      - approver_guid
+      properties:
+        source_type:
+          type: string
+          enum:
+          - SO
+          - PO
+          - PR
+          - ADJUSTMENT
+          - PAYMENT
+          - JOURNAL
+        gross_total_base:
+          $ref: '#/components/schemas/Decimal'
+        manual_discount_percent:
+          $ref: '#/components/schemas/Decimal'
+        maker_guid:
+          type: string
+          format: uuid
+        approver_guid:
+          type: string
+          format: uuid
+    PostingFixture:
+      type: object
+      additionalProperties: false
+      required:
+      - source_type
+      - action
+      - net_base
+      - tax_base
+      - cost_base
+      - currency
+      properties:
+        source_type:
+          type: string
+          enum:
+          - GRN
+          - SALES_INVOICE
+          - VENDOR_INVOICE
+          - CUSTOMER_RECEIPT
+          - SUPPLIER_PAYMENT
+          - ADJUSTMENT
+        action:
+          type: string
+          enum:
+          - ISSUE
+          - POST
+          - REVERSE
+        net_base:
+          $ref: '#/components/schemas/Decimal'
+        tax_base:
+          $ref: '#/components/schemas/Decimal'
+        cost_base:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+    NumberingFixture:
+      type: object
+      additionalProperties: false
+      required:
+      - document_type
+      - fiscal_year
+      - retry_operation_guid
+      properties:
+        document_type:
+          type: string
+          enum:
+          - SO
+          - PO
+          - GRN
+          - SALES_INVOICE
+          - VENDOR_INVOICE
+          - PAYMENT
+          - JOURNAL
+        fiscal_year:
+          type: integer
+          minimum: 2000
+          maximum: 2100
+        retry_operation_guid:
+          type: string
+          format: uuid
+    SimulationResult:
+      type: object
+      additionalProperties: false
+      required:
+      - policy_guid
+      - matched_rule_guid
+      - result_hash
+      - outcome
+      - result
+      - policy_type
+      properties:
+        policy_guid:
+          type: string
+          format: uuid
+        matched_rule_guid:
+          type: string
+          format: uuid
+        result_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        outcome:
+          type: string
+          enum:
+          - PASS
+          - FAIL
+        result:
+          description: Output matches policy_type when outcome PASS; failure has error_code.
+          oneOf:
+          - $ref: '#/components/schemas/TaxSimulationOutput'
+          - $ref: '#/components/schemas/PriceSimulationOutput'
+          - $ref: '#/components/schemas/CreditSimulationOutput'
+          - $ref: '#/components/schemas/ApprovalSimulationOutput'
+          - $ref: '#/components/schemas/PostingSimulationOutput'
+          - $ref: '#/components/schemas/NumberingSimulationOutput'
+          - $ref: '#/components/schemas/SimulationFailure'
+        policy_type:
+          type: string
+          enum:
+          - TAX
+          - PRICE
+          - CREDIT
+          - APPROVAL
+          - POSTING
+          - NUMBERING
+    ActivatePolicy:
+      type: object
+      additionalProperties: false
+      required:
+      - effective_from
+      - simulation_result_hash
+      - reason
+      properties:
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type:
+          - string
+          - 'null'
+          format: date
+        simulation_result_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    PolicyActivation:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - policy_guid
+      - legal_entity_guid
+      - effective_from
+      - status
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        policy_guid:
+          type: string
+          format: uuid
+        legal_entity_guid:
+          type: string
+          format: uuid
+        effective_from:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - RETIRED
+        version:
+          type: integer
+          minimum: 1
+    TaxQuoteRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - business_date
+      - party_account_guid
+      - sku_guid
+      - transaction_type
+      - taxable_net
+      properties:
+        business_date:
+          type: string
+          format: date
+        party_account_guid:
+          type: string
+          format: uuid
+        sku_guid:
+          type: string
+          format: uuid
+        transaction_type:
+          type: string
+          enum:
+          - SALE
+          - PURCHASE
+          - CREDIT_MEMO
+        taxable_net:
+          $ref: '#/components/schemas/Decimal'
+    TaxQuote:
+      type: object
+      additionalProperties: false
+      required:
+      - rule_version_guid
+      - taxable_net
+      - dpp
+      - tax
+      - gross
+      - currency
+      properties:
+        rule_version_guid:
+          type: string
+          format: uuid
+        taxable_net:
+          $ref: '#/components/schemas/Decimal'
+        dpp:
+          $ref: '#/components/schemas/Decimal'
+        tax:
+          $ref: '#/components/schemas/Decimal'
+        gross:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string
+    UserRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - display_name
+      - status
+      - session_version
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          type: string
+          minLength: 1
+          maxLength: 500
+        session_version:
+          type: integer
+          minimum: 0
+        version:
+          type: integer
+          minimum: 0
+    RoleRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - code
+      - name
+      - status
+      - permissions
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          type: string
+          minLength: 1
+          maxLength: 500
+        permissions:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        version:
+          type: integer
+          minimum: 0
+    RoleReadPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - watermark
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleRead'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+        watermark:
+          type: string
+    SessionRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - device_label
+      - last_seen_at
+      - expires_at
+      - status
+      properties:
+        guid:
+          type: string
+          format: uuid
+        device_label:
+          type: string
+          minLength: 1
+          maxLength: 500
+        last_seen_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          minLength: 1
+          maxLength: 500
+    PartyAccountRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - party_guid
+      - party_type
+      - code
+      - name
+      - status
+      - payment_term_days
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        party_guid:
+          type: string
+          format: uuid
+        party_type:
+          type: string
+          minLength: 1
+          maxLength: 500
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - BLOCKED
+          - INACTIVE
+        payment_term_days:
+          type: integer
+          minimum: 0
+        bank_masked:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        tax_id_masked:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        version:
+          type: integer
+          minimum: 0
+    RoleGrantRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - role_guid
+      - legal_entity_guid
+      - effective_from
+      - status
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        role_guid:
+          type: string
+          format: uuid
+        legal_entity_guid:
+          type: string
+          format: uuid
+        branch_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        effective_from:
+          type: string
+          format: date
+        status:
+          type: string
+          minLength: 1
+          maxLength: 500
+        version:
+          type: integer
+          minimum: 0
+    OrgNodeRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - parent_guid
+      - kind
+      - code
+      - name
+      - status
+      - effective_from
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        parent_guid:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          minLength: 1
+          maxLength: 500
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          type: string
+          minLength: 1
+          maxLength: 500
+        effective_from:
+          type: string
+          format: date
+        version:
+          type: integer
+          minimum: 0
+    PriceQuoteRead:
+      type: object
+      additionalProperties: false
+      required:
+      - sku_guid
+      - customer_account_guid
+      - quantity_base
+      - unit_price
+      - net_base
+      - currency
+      - rule_guid
+      - rule_version
+      - watermark
+      properties:
+        sku_guid:
+          type: string
+          format: uuid
+        customer_account_guid:
+          type: string
+          format: uuid
+        quantity_base:
+          type: string
+          pattern: ^-?\d{1,14}(\.\d{1,6})?$
+        unit_price:
+          type: string
+          pattern: ^-?\d{1,14}(\.\d{1,6})?$
+        net_base:
+          type: string
+          pattern: ^-?\d{1,14}(\.\d{1,6})?$
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        rule_guid:
+          type: string
+          format: uuid
+        rule_version:
+          type: integer
+          minimum: 0
+        watermark:
+          type: string
+          format: date-time
+    SessionReadPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - watermark
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionRead'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+        watermark:
+          type: string
+    CommandReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - version
+      - operation_guid
+      properties:
+        guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        operation_guid:
+          type: string
+          format: uuid
+    RoleGrantReadPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - watermark
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleGrantRead'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+        watermark:
+          type: string
+    TaxPolicyContent:
+      type: object
+      additionalProperties: false
+      required:
+      - jurisdiction
+      - entity_pkp
+      - rules
+      properties:
+        jurisdiction:
+          type: string
+          minLength: 2
+        entity_pkp:
+          type: boolean
+        rules:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - party_tax_class
+            - sku_tax_class
+            - transaction_type
+            - vat_rate
+            - dpp_numerator
+            - dpp_denominator
+            - rounding
+            properties:
+              party_tax_class:
+                type: string
+              sku_tax_class:
+                type: string
+              transaction_type:
+                type: string
+                enum:
+                - SALE
+                - PURCHASE
+              vat_rate:
+                $ref: '#/components/schemas/Decimal'
+              dpp_numerator:
+                type: integer
+                minimum: 1
+              dpp_denominator:
+                type: integer
+                minimum: 1
+              rounding:
+                type: string
+                enum:
+                - HALF_UP
+    PricePolicyContent:
+      type: object
+      additionalProperties: false
+      required:
+      - currency
+      - rules
+      properties:
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        rules:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - sku_guid
+            - unit_price
+            - priority
+            properties:
+              sku_guid:
+                type: string
+                format: uuid
+              customer_account_guid:
+                type:
+                - string
+                - 'null'
+                format: uuid
+              segment_code:
+                type:
+                - string
+                - 'null'
+              unit_price:
+                $ref: '#/components/schemas/Decimal'
+              priority:
+                type: integer
+                minimum: 0
+    CreditPolicyContent:
+      type: object
+      additionalProperties: false
+      required:
+      - customer_account_guid
+      - limit_base
+      - fx_max_age_hours
+      - fx_buffer_percent
+      - eligible_deposit
+      - override_enabled
+      - override_max_hours
+      properties:
+        customer_account_guid:
+          type: string
+          format: uuid
+        limit_base:
+          $ref: '#/components/schemas/Decimal'
+        fx_max_age_hours:
+          type: integer
+          minimum: 1
+        fx_buffer_percent:
+          $ref: '#/components/schemas/Decimal'
+        eligible_deposit:
+          type: boolean
+        override_enabled:
+          type: boolean
+        override_max_hours:
+          type: integer
+          minimum: 1
+          maximum: 24
+    ApprovalPolicyContent:
+      type: object
+      additionalProperties: false
+      required:
+      - document_type
+      - steps
+      properties:
+        document_type:
+          type: string
+          enum:
+          - SO
+          - PO
+          - PR
+          - PAYMENT
+          - JOURNAL
+          - ADJUSTMENT
+        steps:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - min_amount_base
+            - max_amount_base
+            - min_inclusive
+            - max_inclusive
+            - role_guid
+            - sod_required
+            properties:
+              min_amount_base:
+                $ref: '#/components/schemas/Decimal'
+              max_amount_base:
+                $ref: '#/components/schemas/Decimal'
+              min_inclusive:
+                type: boolean
+              max_inclusive:
+                type: boolean
+              role_guid:
+                type: string
+                format: uuid
+              sod_required:
+                type: boolean
+    PostingPolicyContent:
+      type: object
+      additionalProperties: false
+      required:
+      - source_type
+      - action
+      - legs
+      properties:
+        source_type:
+          type: string
+        action:
+          type: string
+        legs:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - leg
+            - side
+            - account_guid
+            - required_dimensions
+            properties:
+              leg:
+                type: string
+              side:
+                type: string
+                enum:
+                - DEBIT
+                - CREDIT
+              account_guid:
+                type: string
+                format: uuid
+              required_dimensions:
+                type: array
+                items:
+                  type: string
+    NumberingPolicyContent:
+      type: object
+      additionalProperties: false
+      required:
+      - document_type
+      - fiscal_year
+      - prefix
+      - width
+      - next_value
+      properties:
+        document_type:
+          type: string
+        fiscal_year:
+          type: integer
+          minimum: 2000
+          maximum: 2100
+        prefix:
+          type: string
+          minLength: 1
+          maxLength: 32
+        width:
+          type: integer
+          minimum: 1
+          maximum: 20
+        next_value:
+          type: integer
+          minimum: 1
+    CreatePolicy:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        required:
+        - policy_type
+        - code
+        - content
+        properties:
+          policy_type:
+            const: TAX
+          code:
+            type: string
+            minLength: 1
+            maxLength: 64
+          content:
+            $ref: '#/components/schemas/TaxPolicyContent'
+      - type: object
+        additionalProperties: false
+        required:
+        - policy_type
+        - code
+        - content
+        properties:
+          policy_type:
+            const: PRICE
+          code:
+            type: string
+            minLength: 1
+            maxLength: 64
+          content:
+            $ref: '#/components/schemas/PricePolicyContent'
+      - type: object
+        additionalProperties: false
+        required:
+        - policy_type
+        - code
+        - content
+        properties:
+          policy_type:
+            const: CREDIT
+          code:
+            type: string
+            minLength: 1
+            maxLength: 64
+          content:
+            $ref: '#/components/schemas/CreditPolicyContent'
+      - type: object
+        additionalProperties: false
+        required:
+        - policy_type
+        - code
+        - content
+        properties:
+          policy_type:
+            const: APPROVAL
+          code:
+            type: string
+            minLength: 1
+            maxLength: 64
+          content:
+            $ref: '#/components/schemas/ApprovalPolicyContent'
+      - type: object
+        additionalProperties: false
+        required:
+        - policy_type
+        - code
+        - content
+        properties:
+          policy_type:
+            const: POSTING
+          code:
+            type: string
+            minLength: 1
+            maxLength: 64
+          content:
+            $ref: '#/components/schemas/PostingPolicyContent'
+      - type: object
+        additionalProperties: false
+        required:
+        - policy_type
+        - code
+        - content
+        properties:
+          policy_type:
+            const: NUMBERING
+          code:
+            type: string
+            minLength: 1
+            maxLength: 64
+          content:
+            $ref: '#/components/schemas/NumberingPolicyContent'
+    PolicyVersion:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - policy_type
+      - code
+      - status
+      - content_hash
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        policy_type:
+          type: string
+          enum:
+          - TAX
+          - PRICE
+          - CREDIT
+          - APPROVAL
+          - POSTING
+          - NUMBERING
+        code:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - TESTED
+          - PUBLISHED
+          - RETIRED
+        content_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        version:
+          type: integer
+          minimum: 1
+    PublishPolicy:
+      type: object
+      additionalProperties: false
+      required:
+      - simulation_result_hash
+      - reason
+      properties:
+        simulation_result_hash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    TaxSimulationOutput:
+      type: object
+      additionalProperties: false
+      required:
+      - dpp_base
+      - vat_base
+      - gross_base
+      - rule_guid
+      properties:
+        dpp_base:
+          $ref: '#/components/schemas/Decimal'
+        vat_base:
+          $ref: '#/components/schemas/Decimal'
+        gross_base:
+          $ref: '#/components/schemas/Decimal'
+        rule_guid:
+          type: string
+          format: uuid
+    PriceSimulationOutput:
+      type: object
+      additionalProperties: false
+      required:
+      - unit_price
+      - discount_base
+      - net_base
+      - rule_guid
+      properties:
+        unit_price:
+          $ref: '#/components/schemas/Decimal'
+        discount_base:
+          $ref: '#/components/schemas/Decimal'
+        net_base:
+          $ref: '#/components/schemas/Decimal'
+        rule_guid:
+          type: string
+          format: uuid
+    CreditSimulationOutput:
+      type: object
+      additionalProperties: false
+      required:
+      - gross_exposure_base
+      - eligible_deposit_base
+      - net_exposure_base
+      - available_base
+      - decision
+      properties:
+        gross_exposure_base:
+          $ref: '#/components/schemas/Decimal'
+        eligible_deposit_base:
+          $ref: '#/components/schemas/Decimal'
+        net_exposure_base:
+          $ref: '#/components/schemas/Decimal'
+        available_base:
+          $ref: '#/components/schemas/Decimal'
+        decision:
+          type: string
+          enum:
+          - ALLOW
+          - HOLD
+    ApprovalSimulationOutput:
+      type: object
+      additionalProperties: false
+      required:
+      - required_role_guids
+      - sod_pass
+      properties:
+        required_role_guids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        sod_pass:
+          type: boolean
+    PostingSimulationOutput:
+      type: object
+      additionalProperties: false
+      required:
+      - legs
+      - balanced
+      properties:
+        legs:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - account_guid
+            - side
+            - amount_base
+            properties:
+              account_guid:
+                type: string
+                format: uuid
+              side:
+                type: string
+                enum:
+                - DEBIT
+                - CREDIT
+              amount_base:
+                $ref: '#/components/schemas/Decimal'
+        balanced:
+          type: boolean
+    NumberingSimulationOutput:
+      type: object
+      additionalProperties: false
+      required:
+      - next_document_no
+      - reused_retry_result
+      properties:
+        next_document_no:
+          type: string
+        reused_retry_result:
+          type: boolean
+    SimulationFailure:
+      type: object
+      additionalProperties: false
+      required:
+      - error_code
+      - reason
+      properties:
+        error_code:
+          type: string
+        reason:
+          type: string

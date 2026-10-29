@@ -1,0 +1,21 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000125",
+  "type": "master.party.published.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000021",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000325",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000425",
+  "causation_id": null,
+  "data": {
+    "party_guid": "01990f5b-bbb9-7000-8000-000000000021",
+    "account_guid": "01990f5b-bbb9-7000-8000-000000000022",
+    "party_type": "CUSTOMER",
+    "status": "ACTIVE",
+    "account_version": 1
+  }
+}

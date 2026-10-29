@@ -1,0 +1,458 @@
+openapi: 3.1.1
+info:
+  title: ERP Inventory Receipt API
+  version: 1.0.0
+  description: First-slice receipt and stock ledger contract. Receipt limit is maintained by Operations
+    after PO approved event.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/goods-receipts:
+    post:
+      operationId: createGoodsReceipt
+      x-permission: inventory.receipt.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReceipt'
+            example:
+              purchase_order_guid: 01990f5b-bbb9-7000-8000-000000000012
+              warehouse_guid: 01990f5b-bbb9-7000-8000-000000000013
+              lines:
+              - purchase_order_line_guid: 01990f5b-bbb9-7000-8000-000000000014
+                accepted_qty_base: '24'
+                entered_qty: '2'
+                entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+      responses:
+        '201':
+          description: Draft receipt
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                purchase_order_guid: 01990f5b-bbb9-7000-8000-000000000001
+                warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  purchase_order_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  accepted_qty_base: '24'
+                  entered_qty: '2'
+                  entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+                version: 1
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    get:
+      operationId: listGoodsReceipts
+      x-permission: inventory.receipt.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: page_size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      responses:
+        '200':
+          description: Scoped list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Receipt'
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+              example:
+                data: []
+                next_cursor: cursor-example
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/goods-receipts/{guid}:
+    get:
+      operationId: getGoodsReceipt
+      x-permission: inventory.receipt.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      responses:
+        '200':
+          description: Receipt detail
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                purchase_order_guid: 01990f5b-bbb9-7000-8000-000000000001
+                warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  purchase_order_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  accepted_qty_base: '24'
+                  entered_qty: '2'
+                  entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+                version: 1
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/goods-receipts/{guid}/post:
+    post:
+      operationId: postGoodsReceipt
+      x-permission: inventory.receipt.post
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Receipt and stock movement posted once
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                purchase_order_guid: 01990f5b-bbb9-7000-8000-000000000001
+                warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  purchase_order_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  accepted_qty_base: '24'
+                  entered_qty: '2'
+                  entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+                version: 1
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /api/v1/stock-movements:
+    get:
+      operationId: listStockMovements
+      x-permission: inventory.movement.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: warehouse_guid
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: page_size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      responses:
+        '200':
+          description: Scoped append-only ledger page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                - as_of
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Movement'
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                data: []
+                next_cursor: cursor-example
+                as_of: '2026-10-28T10:00:00Z'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Entity:
+      name: X-Legal-Entity-Guid
+      in: header
+      required: true
+      description: Selection only; server verifies membership and warehouse scope.
+      schema:
+        type: string
+        format: uuid
+    Guid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Strong ETag quoted aggregate version.
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable domain error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: PURCHASE_PO_RECEIPT_EXCEEDS_REMAINING
+            message: Accepted quantity exceeds remaining purchase quantity
+            details:
+              remaining_qty_base: '4.000000'
+            request_id: req-01990f5b
+  schemas:
+    Decimal:
+      type: string
+      pattern: ^\d{1,14}(\.\d{1,6})?$
+    CreateReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - purchase_order_guid
+      - warehouse_guid
+      - lines
+      properties:
+        purchase_order_guid:
+          type: string
+          format: uuid
+        warehouse_guid:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - purchase_order_line_guid
+            - accepted_qty_base
+            - entered_qty
+            - entered_uom_guid
+            properties:
+              purchase_order_line_guid:
+                type: string
+                format: uuid
+              accepted_qty_base:
+                $ref: '#/components/schemas/Decimal'
+              entered_qty:
+                type: string
+                pattern: ^\d{1,14}(\.\d{1,6})?$
+              entered_uom_guid:
+                type: string
+                format: uuid
+              conversion_version_guid:
+                type:
+                - string
+                - 'null'
+                format: uuid
+    Receipt:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - legal_entity_guid
+      - purchase_order_guid
+      - warehouse_guid
+      - status
+      - lines
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        legal_entity_guid:
+          type: string
+          format: uuid
+        purchase_order_guid:
+          type: string
+          format: uuid
+        warehouse_guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - POSTED
+          - VOIDED
+        lines:
+          type: array
+          items:
+            type: object
+            required:
+            - guid
+            - purchase_order_line_guid
+            - accepted_qty_base
+            - entered_qty
+            - entered_uom_guid
+            - conversion_version_guid
+            properties:
+              guid:
+                type: string
+                format: uuid
+              purchase_order_line_guid:
+                type: string
+                format: uuid
+              accepted_qty_base:
+                $ref: '#/components/schemas/Decimal'
+              entered_qty:
+                type: string
+                pattern: ^\d{1,14}(\.\d{1,6})?$
+              entered_uom_guid:
+                type: string
+                format: uuid
+              conversion_version_guid:
+                type:
+                - string
+                - 'null'
+                format: uuid
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        posted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    Movement:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - source_receipt_guid
+      - source_line_guid
+      - warehouse_guid
+      - sku_guid
+      - qty_base
+      - value_base
+      - occurred_at
+      properties:
+        guid:
+          type: string
+          format: uuid
+        source_receipt_guid:
+          type: string
+          format: uuid
+        source_line_guid:
+          type: string
+          format: uuid
+        warehouse_guid:
+          type: string
+          format: uuid
+        sku_guid:
+          type: string
+          format: uuid
+        qty_base:
+          $ref: '#/components/schemas/Decimal'
+        value_base:
+          $ref: '#/components/schemas/Decimal'
+        occurred_at:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string

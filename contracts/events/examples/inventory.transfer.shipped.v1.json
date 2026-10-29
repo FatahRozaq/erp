@@ -1,0 +1,23 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000004",
+  "type": "inventory.transfer.shipped.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000104",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000425",
+  "causation_id": null,
+  "data": {
+    "transfer_guid": "01990f5b-bbb9-7000-8000-000000000001",
+    "shipment_portion_guid": "01990f5b-bbb9-7000-8000-000000000002",
+    "sku_guid": "01990f5b-bbb9-7000-8000-000000000003",
+    "from_warehouse_guid": "01990f5b-bbb9-7000-8000-000000000001",
+    "to_warehouse_guid": "01990f5b-bbb9-7000-8000-000000000002",
+    "qty_base": "10.000000",
+    "cost_base": "1000.000000"
+  }
+}

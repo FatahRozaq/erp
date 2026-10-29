@@ -1,0 +1,28 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000130",
+  "type": "warehouse.delivery.accepted.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000031",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000330",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000430",
+  "causation_id": null,
+  "data": {
+    "delivery_guid": "01990f5b-bbb9-7000-8000-000000000031",
+    "business_date": "2026-10-28",
+    "evidence_guid": "01990f5b-bbb9-7000-8000-000000000033",
+    "source_portions": [
+      {
+        "source_portion_guid": "01990f5b-bbb9-7000-8000-000000000034",
+        "delivery_line_guid": "01990f5b-bbb9-7000-8000-000000000032",
+        "accepted_qty_base": "3.000000",
+        "rejected_qty_base": "2.000000",
+        "outbound_unit_cost_base": "110.000000"
+      }
+    ]
+  }
+}

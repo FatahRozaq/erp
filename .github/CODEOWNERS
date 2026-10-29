@@ -1,0 +1,11 @@
+# Provisional repository owner from local Git identity; confirm GitHub account binding before branch protection.
+* @FatahRozaq
+/backend/golang/services/platform/ @FatahRozaq
+/backend/golang/services/commercial/ @FatahRozaq
+/backend/golang/services/operations/ @FatahRozaq
+/backend/golang/services/finance/ @FatahRozaq
+/backend/golang/services/gateway/ @FatahRozaq
+/contracts/ @FatahRozaq
+/frontend/nextjs/ @FatahRozaq
+/mobile/flutter/ @FatahRozaq
+/infra/ @FatahRozaq

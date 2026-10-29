@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://erp.example.invalid/contracts/events/platform/connector-event-accepted/v1.json",
+  "title": "platform.connector.event_accepted.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "type",
+    "schema_version",
+    "aggregate_guid",
+    "aggregate_version",
+    "tenant_guid",
+    "legal_entity_guid",
+    "business_operation_guid",
+    "occurred_at",
+    "recorded_at",
+    "correlation_id",
+    "causation_id",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "const": "platform.connector.event_accepted.v1"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "aggregate_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tenant_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "legal_entity_guid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "business_operation_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connector_guid",
+        "external_id",
+        "payload_sha256",
+        "mapped_command_guid"
+      ],
+      "properties": {
+        "connector_guid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "external_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "payload_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "mapped_command_guid": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  }
+}

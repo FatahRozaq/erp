@@ -1,0 +1,738 @@
+openapi: 3.1.1
+info:
+  title: ERP Master SKU API
+  version: 1.0.0
+  description: Canonical first-slice contract. UUIDs are public identifiers; id BIGINT is internal.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/uoms:
+    post:
+      operationId: createUom
+      x-permission: master.uom.create
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - code
+              - name
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+                  maxLength: 32
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+            example:
+              code: EA
+              name: Each
+      responses:
+        '201':
+          description: Active unit of measure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Uom'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                code: PILOT-01
+                name: Pilot example
+                status: ACTIVE
+                version: 1
+        '409':
+          $ref: '#/components/responses/Problem'
+    get:
+      operationId: listUoms
+      x-permission: master.uom.read
+      responses:
+        '200':
+          description: Active UOMs in tenant
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Uom'
+              example: []
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/skus:
+    post:
+      operationId: createSku
+      x-permission: master.sku.create
+      summary: Create a draft stocked SKU
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSku'
+            example:
+              code: SKU-A
+              name: Sample widget
+              base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+              tax_class: NON_LUXURY
+              product_category: STOCKED
+              lot_required: false
+              serial_required: false
+      responses:
+        '201':
+          description: Draft created
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Quoted aggregate version, e.g. "1".
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                code: PILOT-01
+                name: Pilot example
+                base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                created_at: '2026-10-28T10:00:00Z'
+                tax_class: NON_LUXURY
+                product_category: STOCKED
+                lot_required: false
+                serial_required: false
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    get:
+      operationId: listSkus
+      x-permission: master.sku.read
+      parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: page_size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      responses:
+        '200':
+          description: Scoped list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - next_cursor
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Sku'
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+              example:
+                data: []
+                next_cursor: cursor-example
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/skus/{guid}:
+    get:
+      operationId: getSku
+      x-permission: master.sku.read
+      parameters:
+      - $ref: '#/components/parameters/Guid'
+      responses:
+        '200':
+          description: SKU detail
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                code: PILOT-01
+                name: Pilot example
+                base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                created_at: '2026-10-28T10:00:00Z'
+                tax_class: NON_LUXURY
+                product_category: STOCKED
+                lot_required: false
+                serial_required: false
+        '404':
+          $ref: '#/components/responses/Problem'
+    patch:
+      operationId: updateSkuDraft
+      x-permission: master.product.manage
+      description: Draft attributes only; base UOM cannot change after first movement.
+      parameters:
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSku'
+            example:
+              tax_class: NON_LUXURY
+              lot_required: false
+      responses:
+        '200':
+          description: Updated draft SKU with new version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                code: SKU-1
+                name: Pilot SKU
+                base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+                tax_class: NON_LUXURY
+                product_category: STOCKED
+                lot_required: false
+                serial_required: false
+                status: DRAFT
+                version: 2
+                created_at: '2026-10-28T10:00:00Z'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/skus/{guid}/publish:
+    post:
+      operationId: publishSku
+      x-permission: master.sku.publish
+      summary: Publish a draft SKU; no state PATCH shortcut
+      parameters:
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Published
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                code: PILOT-01
+                name: Pilot example
+                base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PUBLISHED
+                version: 1
+                created_at: '2026-10-28T10:00:00Z'
+                tax_class: NON_LUXURY
+                product_category: STOCKED
+                lot_required: false
+                serial_required: false
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/skus/{guid}/uom-conversions:
+    post:
+      operationId: createSkuUomConversion
+      x-permission: master.product.manage
+      description: Base quantity equals entered quantity times numerator divided by denominator.
+      parameters:
+      - &id001
+        name: guid
+        in: path
+        required: true
+        schema: &id002
+          type: string
+          format: uuid
+      - &id003
+        $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversion'
+            example:
+              uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+              numerator: 12
+              denominator: 1
+              effective_from: '2026-10-28'
+      responses:
+        '201':
+          description: Draft conversion version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UomConversion'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000003
+                sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+                numerator: 12
+                denominator: 1
+                effective_from: '2026-10-28'
+                status: DRAFT
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    get:
+      operationId: listSkuUomConversions
+      x-permission: master.product.read
+      parameters:
+      - *id001
+      - name: as_of
+        in: query
+        required: true
+        schema: &id009
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Version history and active conversion for as_of.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UomConversionPage'
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000003
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  numerator: 12
+                  denominator: 1
+                  effective_from: '2026-10-28'
+                  status: ACTIVE
+                  version: 1
+                as_of: '2026-10-28'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/skus/{guid}/uom-conversions/{conversion_guid}/publish:
+    post:
+      operationId: publishSkuUomConversion
+      x-permission: master.product.publish
+      parameters:
+      - *id001
+      - name: conversion_guid
+        in: path
+        required: true
+        schema: *id002
+      - &id004
+        name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^"[1-9][0-9]*"$
+      - *id003
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionReason'
+            example:
+              reason: Approved conversion for pilot
+      responses:
+        '200':
+          description: Active immutable conversion; old snapshots remain.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UomConversion'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000003
+                sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+                numerator: 12
+                denominator: 1
+                effective_from: '2026-10-28'
+                status: ACTIVE
+                version: 2
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/skus/{guid}/deactivate:
+    post:
+      operationId: deactivateSku
+      x-permission: master.product.manage
+      parameters:
+      - *id001
+      - *id004
+      - *id003
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionReason'
+            example:
+              reason: Product retired for pilot
+      responses:
+        '200':
+          description: Inactive for new transactions; history preserved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                code: SKU-1
+                name: Pilot SKU
+                base_uom_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: INACTIVE
+                version: 2
+                created_at: '2026-10-28T10:00:00Z'
+                tax_class: NON_LUXURY
+                product_category: STOCKED
+                lot_required: false
+                serial_required: false
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Guid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Strong ETag equal to quoted current aggregate version.
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable domain error; 404 also covers out-of-scope resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: MASTER_SKU_CODE_EXISTS
+            message: SKU code already exists
+            details: {}
+            request_id: req-01990f5b
+  schemas:
+    Uom:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - code
+      - name
+      - status
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+    Decimal:
+      type: string
+      pattern: ^-?\d{1,14}(\.\d{1,6})?$
+    CreateSku:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - name
+      - base_uom_guid
+      - tax_class
+      - product_category
+      - lot_required
+      - serial_required
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name: &id010
+          type: string
+          minLength: 1
+          maxLength: 200
+        base_uom_guid:
+          type: string
+          format: uuid
+        tax_class: &id005
+          type: string
+          minLength: 1
+          maxLength: 60
+        product_category: &id006
+          type: string
+          minLength: 1
+          maxLength: 60
+        lot_required: &id007
+          type: boolean
+        serial_required: &id008
+          type: boolean
+    Sku:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - code
+      - name
+      - base_uom_guid
+      - status
+      - version
+      - created_at
+      - tax_class
+      - product_category
+      - lot_required
+      - serial_required
+      properties:
+        guid:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        base_uom_guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - INACTIVE
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        tax_class: *id005
+        product_category: *id006
+        lot_required: *id007
+        serial_required: *id008
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string
+    CreateConversion:
+      type: object
+      additionalProperties: false
+      required:
+      - uom_guid
+      - numerator
+      - denominator
+      - effective_from
+      properties:
+        uom_guid: *id002
+        numerator:
+          type: integer
+          minimum: 1
+        denominator:
+          type: integer
+          minimum: 1
+        effective_from: *id009
+        effective_to:
+          type:
+          - string
+          - 'null'
+          format: date
+    UomConversion:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - sku_guid
+      - uom_guid
+      - base_uom_guid
+      - numerator
+      - denominator
+      - effective_from
+      - status
+      - version
+      properties:
+        guid: *id002
+        sku_guid: *id002
+        uom_guid: *id002
+        base_uom_guid: *id002
+        numerator:
+          type: integer
+          minimum: 1
+        denominator:
+          type: integer
+          minimum: 1
+        effective_from: *id009
+        effective_to:
+          type:
+          - string
+          - 'null'
+          format: date
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - ACTIVE
+          - RETIRED
+        version:
+          type: integer
+          minimum: 1
+    UomConversionPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - as_of
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UomConversion'
+        as_of: *id009
+    DecisionReason:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    UpdateSku:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: *id010
+        tax_class: *id005
+        product_category: *id006
+        lot_required: *id007
+        serial_required: *id008

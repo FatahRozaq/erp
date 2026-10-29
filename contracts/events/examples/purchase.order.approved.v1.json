@@ -1,0 +1,29 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000102",
+  "type": "purchase.order.approved.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000012",
+  "aggregate_version": 3,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000003",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000202",
+  "occurred_at": "2026-10-28T03:00:00Z",
+  "recorded_at": "2026-10-28T03:00:00Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000302",
+  "causation_id": "01990f5b-bbb9-7000-8000-000000000301",
+  "data": {
+    "purchase_order_guid": "01990f5b-bbb9-7000-8000-000000000012",
+    "currency_code": "IDR",
+    "lines": [
+      {
+        "purchase_order_line_guid": "01990f5b-bbb9-7000-8000-000000000014",
+        "sku_guid": "01990f5b-bbb9-7000-8000-000000000011",
+        "approved_qty_base": "10.000000",
+        "unit_cost_base": "100.000000",
+        "base_uom_guid": "01990f5b-bbb9-7000-8000-000000000002"
+      }
+    ],
+    "po_revision": 1,
+    "retired_line_guids": []
+  }
+}

@@ -1,0 +1,54 @@
+name: erp-local
+services:
+  postgres:
+    image: docker.io/library/postgres:18.1-alpine
+    environment:
+      POSTGRES_USER: erp_local
+      POSTGRES_PASSWORD: erp_local_only
+      POSTGRES_DB: erp_local
+    ports: ["127.0.0.1:15432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_local -d erp_local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: docker.io/library/redis:8.2-alpine
+    ports: ["127.0.0.1:16379:6379"]
+  nats:
+    image: docker.io/library/nats:2.12-alpine
+    command: ["--jetstream", "--store_dir", "/data"]
+    ports: ["127.0.0.1:4222:4222"]
+    volumes:
+      - nats_data:/data
+  minio:
+    build: ../minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: erp_local
+      MINIO_ROOT_PASSWORD: erp_local_only
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    volumes:
+      - minio_data:/data
+  gateway:
+    build: ../../backend/golang/services/gateway
+    environment:
+      HTTP_ADDR: :8080
+    ports: ["127.0.0.1:8080:8080"]
+  platform:
+    build: ../../backend/golang/services/platform
+  commercial:
+    build: ../../backend/golang/services/commercial
+  operations:
+    build: ../../backend/golang/services/operations
+  finance:
+    build: ../../backend/golang/services/finance
+  web:
+    build: ../../frontend/nextjs
+    ports: ["127.0.0.1:3000:3000"]
+volumes:
+  postgres_data:
+  nats_data:
+  minio_data:

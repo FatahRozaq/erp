@@ -1,0 +1,589 @@
+openapi: 3.1.1
+info:
+  title: ERP Mobile Sync API
+  version: 1.0.0
+  description: Phase 2 offline order/POD metadata. Attachments upload through signed object URL before
+    POD command; checksum binds evidence.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/sync/evidence-uploads:
+    post:
+      operationId: createEvidenceUpload
+      x-permission: mobile.pod.evidence_upload
+      summary: Reserve a short-lived upload URL for encrypted POD evidence
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - device_guid
+              - media_type
+              - size_bytes
+              - sha256
+              properties:
+                device_guid:
+                  type: string
+                  format: uuid
+                media_type:
+                  type: string
+                  enum:
+                  - image/jpeg
+                  - image/png
+                size_bytes:
+                  type: integer
+                  minimum: 1
+                  maximum: 10485760
+                sha256:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+            example:
+              device_guid: 01990f5b-bbb9-7000-8000-000000000001
+              media_type: image/jpeg
+              size_bytes: 1
+              sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      responses:
+        '201':
+          description: Upload reservation; object is private until checksum and malware validation pass.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - evidence_upload_guid
+                - upload_url
+                - expires_at
+                properties:
+                  evidence_upload_guid:
+                    type: string
+                    format: uuid
+                  upload_url:
+                    type: string
+                    format: uri
+                  expires_at:
+                    type: string
+                    format: date-time
+              example:
+                evidence_upload_guid: 01990f5b-bbb9-7000-8000-000000000001
+                upload_url: https://erp.example.invalid/private/example
+                expires_at: '2026-10-28T10:00:00Z'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/sync/commands:
+    post:
+      operationId: pushMobileCommands
+      x-permission: mobile.sync.push
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandBatch'
+            example:
+              device_guid: 01990f5b-bbb9-7000-8000-000000000001
+              scope_version: 1
+              commands:
+              - client_command_guid: 01990f5b-bbb9-7000-8000-000000000001
+                idempotency_key: examplexxxxxxxxx
+                base_entity_version: 1
+                created_at_device: '2026-10-28T10:00:00Z'
+                payload_schema_version: 1
+                payload:
+                  type: CREATE_ORDER_DRAFT
+                  customer_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  lines:
+                  - sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    qty_base: '1'
+      responses:
+        '200':
+          description: Per-command results; HTTP 200 does not mean all accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResult'
+              example:
+                results:
+                - client_command_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: ACCEPTED
+                server_time: '2026-10-28T10:00:00Z'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+  /api/v1/sync/delta:
+    get:
+      operationId: pullMobileDelta
+      x-permission: mobile.sync.pull
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: collection
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - products
+          - customers
+          - prices
+          - orders
+          - deliveries
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page_size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 200
+      responses:
+        '200':
+          description: Ordered change page; client applies records and cursor atomically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeltaPage'
+              example:
+                scope_version: 1
+                next_cursor: cursor-example
+                has_more: false
+                upserts: []
+                tombstones: []
+                server_time: '2026-10-28T10:00:00Z'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Entity:
+      name: X-Legal-Entity-Guid
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable error. SYNC_RESET_REQUIRED is returned for invalidated cursor.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: SYNC_RESET_REQUIRED
+            message: Refresh scoped cache
+            details: {}
+            request_id: req-01990f5b
+  schemas:
+    Decimal:
+      type: string
+      pattern: ^\d{1,14}(\.\d{1,6})?$
+    CommandBatch:
+      type: object
+      additionalProperties: false
+      required:
+      - device_guid
+      - scope_version
+      - commands
+      properties:
+        device_guid:
+          type: string
+          format: uuid
+        scope_version:
+          type: integer
+          minimum: 1
+        commands:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/SyncCommand'
+    SyncCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - client_command_guid
+      - idempotency_key
+      - base_entity_version
+      - created_at_device
+      - payload_schema_version
+      - payload
+      properties:
+        client_command_guid:
+          type: string
+          format: uuid
+        idempotency_key:
+          type: string
+          minLength: 16
+          maxLength: 128
+        base_entity_version:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+        created_at_device:
+          type: string
+          format: date-time
+        payload_schema_version:
+          type: integer
+          const: 1
+        payload:
+          oneOf:
+          - $ref: '#/components/schemas/OrderDraft'
+          - $ref: '#/components/schemas/PodEvidence'
+    OrderDraft:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - customer_guid
+      - lines
+      properties:
+        type:
+          const: CREATE_ORDER_DRAFT
+        customer_guid:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - sku_guid
+            - qty_base
+            properties:
+              sku_guid:
+                type: string
+                format: uuid
+              qty_base:
+                $ref: '#/components/schemas/Decimal'
+    PodEvidence:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - delivery_guid
+      - recipient_name
+      - lines
+      - evidence_upload_guid
+      - evidence_sha256
+      properties:
+        type:
+          const: UPLOAD_POD_EVIDENCE
+        delivery_guid:
+          type: string
+          format: uuid
+        recipient_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        evidence_upload_guid:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+            - delivery_line_guid
+            - accepted_qty_base
+            - rejected_qty_base
+            properties:
+              delivery_line_guid:
+                type: string
+                format: uuid
+              accepted_qty_base:
+                $ref: '#/components/schemas/Decimal'
+              rejected_qty_base:
+                $ref: '#/components/schemas/Decimal'
+        evidence_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    BatchResult:
+      type: object
+      additionalProperties: false
+      required:
+      - results
+      - server_time
+      properties:
+        server_time:
+          type: string
+          format: date-time
+        results:
+          type: array
+          items:
+            type: object
+            required:
+            - client_command_guid
+            - status
+            properties:
+              client_command_guid:
+                type: string
+                format: uuid
+              status:
+                type: string
+                enum:
+                - ACCEPTED
+                - NEEDS_REVIEW
+                - REJECTED
+              server_guid:
+                type:
+                - string
+                - 'null'
+                format: uuid
+              version:
+                type:
+                - integer
+                - 'null'
+                minimum: 1
+              code:
+                type:
+                - string
+                - 'null'
+              current_snapshot:
+                type:
+                - object
+                - 'null'
+                additionalProperties: false
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  version:
+                    type: integer
+                    minimum: 1
+                  status:
+                    type: string
+    DeltaPage:
+      type: object
+      additionalProperties: false
+      required:
+      - scope_version
+      - next_cursor
+      - has_more
+      - upserts
+      - tombstones
+      - server_time
+      properties:
+        scope_version:
+          type: integer
+          minimum: 1
+        next_cursor:
+          type: string
+        has_more:
+          type: boolean
+        upserts:
+          type: array
+          items:
+            type: object
+            required:
+            - guid
+            - version
+            - data
+            properties:
+              guid:
+                type: string
+                format: uuid
+              version:
+                type: integer
+                minimum: 1
+              data:
+                oneOf:
+                - $ref: '#/components/schemas/ProductSnapshot'
+                - $ref: '#/components/schemas/CustomerSnapshot'
+                - $ref: '#/components/schemas/PriceSnapshot'
+                - $ref: '#/components/schemas/OrderSnapshot'
+                - $ref: '#/components/schemas/DeliverySnapshot'
+        tombstones:
+          type: array
+          items:
+            type: object
+            required:
+            - guid
+            - deleted_at
+            - reason
+            properties:
+              guid:
+                type: string
+                format: uuid
+              deleted_at:
+                type: string
+                format: date-time
+              reason:
+                type: string
+                enum:
+                - DELETED
+                - OUT_OF_SCOPE
+        server_time:
+          type: string
+          format: date-time
+    ProductSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - code
+      - name
+      - base_uom_guid
+      - status
+      properties:
+        type:
+          const: product
+        code:
+          type: string
+        name:
+          type: string
+        base_uom_guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - PUBLISHED
+          - INACTIVE
+    CustomerSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - display_name
+      - status
+      properties:
+        type:
+          const: customer
+        display_name:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - BLOCKED
+          - INACTIVE
+    PriceSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - sku_guid
+      - unit_price
+      - currency_code
+      - effective_from
+      - effective_to
+      properties:
+        type:
+          const: price
+        sku_guid:
+          type: string
+          format: uuid
+        unit_price:
+          $ref: '#/components/schemas/Decimal'
+        currency_code:
+          const: IDR
+        effective_from:
+          type: string
+          format: date-time
+        effective_to:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    OrderSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - status
+      - document_no
+      properties:
+        type:
+          const: order
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - WAITING_APPROVAL
+          - APPROVED_PENDING_RESERVATION
+          - ALLOCATABLE
+          - BACKORDERED
+          - CANCELLED
+        document_no:
+          type:
+          - string
+          - 'null'
+    DeliverySnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - status
+      properties:
+        type:
+          const: delivery
+        status:
+          type: string
+          enum:
+          - DISPATCHED
+          - POD_ACCEPTED_PENDING_FINANCE
+          - DELIVERED
+          - EXCEPTION
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string

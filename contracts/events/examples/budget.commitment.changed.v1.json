@@ -1,0 +1,22 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000009",
+  "type": "budget.commitment.changed.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000109",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000425",
+  "causation_id": null,
+  "data": {
+    "commitment_guid": "01990f5b-bbb9-7000-8000-000000000001",
+    "source_guid": "01990f5b-bbb9-7000-8000-000000000002",
+    "budget_guid": "01990f5b-bbb9-7000-8000-000000000003",
+    "delta_held_base": "-20.000000",
+    "actual_base": "20.000000",
+    "status": "PARTIALLY_CONSUMED"
+  }
+}

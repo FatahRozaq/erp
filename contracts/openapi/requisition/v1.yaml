@@ -1,0 +1,425 @@
+openapi: 3.1.1
+info:
+  title: ERP Purchase Requisition API
+  version: 1.0.0
+  description: Simple MVP purchase requisition; approved portions can be converted to Purchase Orders
+    without changing original approval.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/purchase-requisitions:
+    post:
+      operationId: createPurchaseRequisition
+      x-permission: purchase.requisition.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequisition'
+            example:
+              branch_guid: 01990f5b-bbb9-7000-8000-000000000001
+              need_by: '2026-11-15'
+              reason: Replenishment
+              lines:
+              - sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+                warehouse_guid: 01990f5b-bbb9-7000-8000-000000000003
+                qty_base: '10.000000'
+      responses:
+        '201':
+          description: Draft requisition.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisition'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                branch_guid: 01990f5b-bbb9-7000-8000-000000000001
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  requested_qty_base: '1'
+                  approved_qty_base: '1'
+                  converted_qty_base: '1'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/purchase-requisitions/{guid}:
+    get:
+      operationId: getPurchaseRequisition
+      x-permission: purchase.requisition.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      responses:
+        '200':
+          description: Requisition with approved and converted quantities.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisition'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                branch_guid: 01990f5b-bbb9-7000-8000-000000000001
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  requested_qty_base: '1'
+                  approved_qty_base: '1'
+                  converted_qty_base: '1'
+                version: 1
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/purchase-requisitions/{guid}/submit:
+    post:
+      operationId: submitPurchaseRequisition
+      x-permission: purchase.requisition.submit
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Approval workflow pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisition'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: SUBMITTED
+                branch_guid: 01990f5b-bbb9-7000-8000-000000000001
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  requested_qty_base: '1'
+                  approved_qty_base: '1'
+                  converted_qty_base: '1'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/purchase-requisitions/{guid}/approve:
+    post:
+      operationId: approvePurchaseRequisition
+      x-permission: purchase.requisition.approve
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+            example:
+              reason: example
+      responses:
+        '200':
+          description: Approved snapshot; maker cannot approve own requisition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisition'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED
+                branch_guid: 01990f5b-bbb9-7000-8000-000000000001
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  requested_qty_base: '1'
+                  approved_qty_base: '1'
+                  converted_qty_base: '1'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+  /api/v1/purchase-requisitions/{guid}/convert:
+    post:
+      operationId: convertPurchaseRequisition
+      x-permission: purchase.order.create
+      description: Creates PO draft from approved remaining quantities; conversion source key is permanent.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConvertRequest'
+            example:
+              vendor_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              lines:
+              - requisition_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                qty_base: '1'
+      responses:
+        '201':
+          description: Converted PO draft reference and remaining requisition quantities.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversionResult'
+              example:
+                purchase_order_guid: 01990f5b-bbb9-7000-8000-000000000001
+                requisition_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: CONVERTED
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Entity:
+      name: X-Legal-Entity-Guid
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Guid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^"[1-9][0-9]*"$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable purchase error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: PURCHASE_REQUISITION_QTY_EXCEEDED
+            message: Quantity exceeds approved remainder
+            details: {}
+            request_id: req-01990f5b
+  schemas:
+    Qty:
+      type: string
+      pattern: ^\d{1,14}(\.\d{1,6})?$
+    CreateRequisition:
+      type: object
+      additionalProperties: false
+      required:
+      - branch_guid
+      - need_by
+      - reason
+      - lines
+      properties:
+        branch_guid:
+          type: string
+          format: uuid
+        need_by:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - sku_guid
+            - warehouse_guid
+            - qty_base
+            properties:
+              sku_guid:
+                type: string
+                format: uuid
+              warehouse_guid:
+                type: string
+                format: uuid
+              qty_base:
+                $ref: '#/components/schemas/Qty'
+    Requisition:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - branch_guid
+      - lines
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - SUBMITTED
+          - APPROVED
+          - REJECTED
+          - CONVERTED
+          - CANCELLED
+        branch_guid:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          items:
+            type: object
+            required:
+            - guid
+            - sku_guid
+            - requested_qty_base
+            - approved_qty_base
+            - converted_qty_base
+            properties:
+              guid:
+                type: string
+                format: uuid
+              sku_guid:
+                type: string
+                format: uuid
+              requested_qty_base:
+                $ref: '#/components/schemas/Qty'
+              approved_qty_base:
+                $ref: '#/components/schemas/Qty'
+              converted_qty_base:
+                $ref: '#/components/schemas/Qty'
+        version:
+          type: integer
+          minimum: 1
+    Reason:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    ConvertRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - vendor_account_guid
+      - lines
+      properties:
+        vendor_account_guid:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - requisition_line_guid
+            - qty_base
+            properties:
+              requisition_line_guid:
+                type: string
+                format: uuid
+              qty_base:
+                $ref: '#/components/schemas/Qty'
+    ConversionResult:
+      type: object
+      additionalProperties: false
+      required:
+      - purchase_order_guid
+      - requisition_guid
+      - status
+      properties:
+        purchase_order_guid:
+          type: string
+          format: uuid
+        requisition_guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - CONVERTED
+          - PARTIALLY_CONVERTED
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string

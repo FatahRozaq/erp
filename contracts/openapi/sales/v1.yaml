@@ -1,0 +1,2691 @@
+openapi: 3.1.1
+info:
+  title: ERP Sales Order and Credit API
+  version: 1.0.0
+  description: MVP sales commitment. Server owns price/tax/credit calculations; reservation is asynchronous
+    after approval.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/sales-orders:
+    post:
+      operationId: createSalesOrder
+      x-permission: sales.order.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrder'
+            example:
+              customer_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              branch_guid: 01990f5b-bbb9-7000-8000-000000000002
+              business_date: '2026-10-28'
+              currency: IDR
+              lines:
+              - sku_guid: 01990f5b-bbb9-7000-8000-000000000003
+                warehouse_guid: 01990f5b-bbb9-7000-8000-000000000004
+                qty_base: '24'
+                manual_discount_percent: '0.000000'
+                entered_qty: '2'
+                entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+      responses:
+        '201':
+          description: Draft with server-computed quote and snapshot references.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                customer_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                currency: IDR
+                gross_total: '666'
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '24'
+                  net: '600'
+                  tax: '66'
+                  gross: '666'
+                  warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  entered_qty: '2'
+                  entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/sales-orders/{guid}:
+    get:
+      operationId: getSalesOrder
+      x-permission: sales.order.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      responses:
+        '200':
+          description: Order and current asynchronous reservation/fulfillment state.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                customer_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                currency: IDR
+                gross_total: '666'
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '24'
+                  net: '600'
+                  tax: '66'
+                  gross: '666'
+                  warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  entered_qty: '2'
+                  entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+                version: 1
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/sales-orders/{guid}/submit:
+    post:
+      operationId: submitSalesOrder
+      x-permission: sales.order.submit
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Credit/approval saga created; not yet allocatable.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                customer_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: WAITING_APPROVAL
+                currency: IDR
+                gross_total: '666'
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '24'
+                  net: '600'
+                  tax: '66'
+                  gross: '666'
+                  warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  entered_qty: '2'
+                  entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/sales-orders/{guid}/approve:
+    post:
+      operationId: approveSalesOrder
+      x-permission: sales.order.approve
+      description: Policy decision is stored by Platform; Sales applies the acknowledgement and requests
+        reservation.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+            example:
+              reason: example
+      responses:
+        '202':
+          description: Approval accepted; reservation outcome pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                customer_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED_PENDING_RESERVATION
+                currency: IDR
+                gross_total: '666'
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '24'
+                  net: '600'
+                  tax: '66'
+                  gross: '666'
+                  warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  entered_qty: '2'
+                  entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/sales-orders/{guid}/cancel:
+    post:
+      operationId: cancelSalesOrder
+      x-permission: sales.order.cancel
+      description: Allowed only before dispatch; reservation and credit release are idempotent saga steps.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+            example:
+              reason: example
+      responses:
+        '202':
+          description: Cancellation and release pending owner acknowledgements.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                legal_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                customer_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: CANCELLED
+                currency: IDR
+                gross_total: '666'
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '24'
+                  net: '600'
+                  tax: '66'
+                  gross: '666'
+                  warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  entered_qty: '2'
+                  entered_uom_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  conversion_version_guid: 01990f5b-bbb9-7000-8000-000000000003
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/credit/accounts/{guid}/exposure:
+    get:
+      operationId: getCreditExposure
+      x-permission: credit.account.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      responses:
+        '200':
+          description: Authoritative current exposure from Commercial primary DB; not an approval promise.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exposure'
+              example:
+                account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                limit_base: '1'
+                gross_exposure_base: '1'
+                eligible_deposit_base: '1'
+                net_exposure_base: '1'
+                available_base: '1'
+                currency: IDR
+                as_of: '2026-10-28T10:00:00Z'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/sales-orders/{guid}/revisions:
+    post:
+      operationId: reviseSalesOrder
+      x-owner: commercial
+      x-permission: sales.order.revise
+      summary: 'reviseSalesOrder: PENDING_RELEASE'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                lines:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - source_line_guid
+                    - quantity_base
+                    properties:
+                      source_line_guid:
+                        type: string
+                        format: uuid
+                      quantity_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                      unit_price:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+              required:
+              - reason
+              - lines
+            example:
+              reason: Approved for pilot
+              lines:
+              - source_line_guid: 01990f5b-bbb9-7000-8000-000000000002
+                quantity_base: '2'
+      responses:
+        '201':
+          description: PENDING_RELEASE state committed by Commercial; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PENDING_RELEASE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SALES_ALREADY_SHIPPED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - SALES_ALREADY_SHIPPED
+      - SALES_REVISION_PENDING
+  /api/v1/credit/accounts/{guid}/overrides:
+    post:
+      operationId: requestCreditOverride
+      x-owner: commercial
+      x-permission: credit.override.request
+      summary: 'requestCreditOverride: PENDING_APPROVAL'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                sales_order_guid:
+                  type: string
+                  format: uuid
+                sales_order_revision:
+                  type: integer
+                  minimum: 0
+                max_extra_base:
+                  type: string
+                  pattern: ^-?\d{1,14}(\.\d{1,6})?$
+                expires_at:
+                  type: string
+                  format: date-time
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - sales_order_guid
+              - sales_order_revision
+              - max_extra_base
+              - expires_at
+              - reason
+            example:
+              sales_order_guid: 01990f5b-bbb9-7000-8000-000000000002
+              sales_order_revision: 1
+              max_extra_base: '100.00'
+              expires_at: '2026-10-28T10:00:00Z'
+              reason: Approved for pilot
+      responses:
+        '201':
+          description: PENDING_APPROVAL state committed by Commercial; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PENDING_APPROVAL
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: CREDIT_OVERRIDE_DISABLED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - CREDIT_OVERRIDE_DISABLED
+      - CREDIT_OVERRIDE_DUPLICATE
+  /api/v1/credit/overrides/{guid}/approve:
+    post:
+      operationId: approveCreditOverride
+      x-owner: commercial
+      x-permission: credit.override.approve
+      summary: 'approveCreditOverride: APPROVED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: APPROVED state committed by Commercial; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: APPROVAL_SOD_VIOLATION
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - APPROVAL_SOD_VIOLATION
+      - CREDIT_OVERRIDE_EXPIRED
+  /api/v1/credit/accounts/{guid}/reversal-holds:
+    post:
+      operationId: holdCreditForPaymentReversal
+      x-owner: commercial
+      x-permission: credit.reversal_hold.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema: &id001
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Owner state is authoritative; retry same operation key is idempotent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReversalHold'
+              example: &id002
+                guid: 01990f5b-bbb9-7000-8000-000000000003
+                credit_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                original_payment_guid: 01990f5b-bbb9-7000-8000-000000000002
+                status: ACTIVE
+                version: 1
+        default:
+          description: 401/403/404/409/422/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Source state changed
+                details: {}
+                request_id: req-01990f5b
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReversalHoldRequest'
+            example:
+              original_payment_guid: 01990f5b-bbb9-7000-8000-000000000002
+              reversal_operation_guid: 01990f5b-bbb9-7000-8000-000000000003
+              reason: Payment reversal pending
+  /api/v1/credit/accounts/{guid}/reversal-holds/{hold_guid}:
+    get:
+      operationId: getCreditReversalHold
+      x-owner: commercial
+      x-permission: credit.reversal_hold.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema: *id001
+      - name: hold_guid
+        in: path
+        required: true
+        schema: *id001
+      responses:
+        '200':
+          description: Owner state is authoritative; retry same operation key is idempotent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReversalHold'
+              example: *id002
+        default:
+          description: 401/403/404/409/422/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Source state changed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/credit/accounts/{guid}/reversal-holds/{hold_guid}/release:
+    post:
+      operationId: releaseCreditReversalHold
+      x-owner: commercial
+      x-permission: credit.reversal_hold.release
+      description: Service-only. Applied path requires the matching reversal event in Credit inbox and an updated exposure projection. Absent path requires a fresh authoritative Finance status check; caller assertion alone never releases the hold.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema: *id001
+      - name: hold_guid
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Owner state is authoritative; retry same operation key is idempotent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReversalHold'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000003
+                credit_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                original_payment_guid: 01990f5b-bbb9-7000-8000-000000000002
+                status: RELEASED
+                version: 2
+        default:
+          description: 401/403/404/409/422/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Source state changed
+                details: {}
+                request_id: req-01990f5b
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseHoldRequest'
+            example:
+              reason: Finance reversal applied to credit projection
+              outcome: REVERSAL_APPLIED
+              finance_reversal_guid: 01990f5b-bbb9-7000-8000-000000000004
+  /api/v1/route-plans:
+    post:
+      operationId: createRoutePlan
+      x-owner: commercial
+      x-stage: P2
+      x-permission: mobile.route.create
+      summary: createRoutePlan — DRAFT; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - salesperson_guid
+              - route_date
+              - customer_account_guids
+              properties:
+                salesperson_guid:
+                  type: string
+                  format: uuid
+                route_date:
+                  type: string
+                  format: date
+                customer_account_guids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: string
+                    format: uuid
+            example:
+              salesperson_guid: 01990f5b-bbb9-7000-8000-000000000001
+              route_date: '2026-11-01'
+              customer_account_guids:
+              - 01990f5b-bbb9-7000-8000-000000000002
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: commercial
+      x-stage: P2
+      x-permission: mobile.route.read
+      summary: Read scoped RoutePlan state; owner is authoritative.
+      operationId: listRoutePlans
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - salesperson_guid
+                          - route_date
+                          - customer_account_guids
+                          properties:
+                            salesperson_guid:
+                              type: string
+                              format: uuid
+                            route_date:
+                              type: string
+                              format: date
+                            customer_account_guids:
+                              type: array
+                              minItems: 1
+                              maxItems: 200
+                              items:
+                                type: string
+                                format: uuid
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    salesperson_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    route_date: '2026-11-01'
+                    customer_account_guids:
+                    - 01990f5b-bbb9-7000-8000-000000000002
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/route-plans/{guid}/publish:
+    post:
+      operationId: publishRoutePlan
+      x-owner: commercial
+      x-stage: P2
+      x-permission: mobile.route.publish
+      x-error-codes: [VISIT_ASSIGNMENT_INVALID]
+      summary: publishRoutePlan — PUBLISHED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              reason: Assignment verified
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PUBLISHED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/visits:
+    post:
+      operationId: recordVisit
+      x-owner: commercial
+      x-stage: P2
+      x-permission: mobile.visit.create
+      x-error-codes: [VISIT_ASSIGNMENT_INVALID]
+      summary: recordVisit — RECORDED; authoritative owner state and idempotent retry.
+      x-emits:
+      - sales.visit.recorded.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - route_plan_guid
+              - customer_account_guid
+              - device_guid
+              - occurred_at_device
+              - note
+              - geo_consent
+              properties:
+                route_plan_guid:
+                  type: string
+                  format: uuid
+                customer_account_guid:
+                  type: string
+                  format: uuid
+                device_guid:
+                  type: string
+                  format: uuid
+                occurred_at_device:
+                  type: string
+                  format: date-time
+                note:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                geo_consent:
+                  type: boolean
+            example:
+              route_plan_guid: 01990f5b-bbb9-7000-8000-000000000001
+              customer_account_guid: 01990f5b-bbb9-7000-8000-000000000002
+              device_guid: 01990f5b-bbb9-7000-8000-000000000001
+              occurred_at_device: '2026-11-01T10:00:00Z'
+              note: Customer visit completed
+              geo_consent: false
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: RECORDED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/promotions:
+    post:
+      operationId: publishPromotion
+      x-owner: commercial
+      x-stage: P3
+      x-permission: sales.promotion.publish
+      x-error-codes: [PROMOTION_CAP_EXCEEDED]
+      summary: publishPromotion — PUBLISHED; authoritative owner state and idempotent retry.
+      x-emits:
+      - sales.promotion.activated.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - type
+              - priority
+              - stack_group
+              - discount_percent
+              - cap_base
+              - effective_from
+              properties:
+                type:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                priority:
+                  type: integer
+                  minimum: 0
+                stack_group:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                discount_percent:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                cap_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                effective_from:
+                  type: string
+                  format: date
+            example:
+              type: PERCENT
+              priority: 10
+              stack_group: EXCLUSIVE_A
+              discount_percent: '10.000000'
+              cap_base: '1000.000000'
+              effective_from: '2026-11-01'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PUBLISHED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: commercial
+      x-stage: P3
+      x-permission: sales.promotion.read
+      summary: Read scoped Promotion state; owner is authoritative.
+      operationId: listPromotions
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - type
+                          - priority
+                          - stack_group
+                          - discount_percent
+                          - cap_base
+                          - effective_from
+                          properties:
+                            type:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            priority:
+                              type: integer
+                              minimum: 0
+                            stack_group:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            discount_percent:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+                            cap_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+                            effective_from:
+                              type: string
+                              format: date
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    type: PERCENT
+                    priority: 10
+                    stack_group: EXCLUSIVE_A
+                    discount_percent: '10.000000'
+                    cap_base: '1000.000000'
+                    effective_from: '2026-11-01'
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/promotions/quote:
+    post:
+      operationId: quotePromotion
+      x-owner: commercial
+      x-stage: P3
+      x-permission: sales.promotion.quote
+      x-error-codes: [PROMOTION_CAP_EXCEEDED]
+      summary: quotePromotion — QUOTED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - customer_account_guid
+              - sku_guid
+              - gross_base
+              - business_date
+              properties:
+                customer_account_guid:
+                  type: string
+                  format: uuid
+                sku_guid:
+                  type: string
+                  format: uuid
+                gross_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                business_date:
+                  type: string
+                  format: date
+            example:
+              customer_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+              gross_base: '100.000000'
+              business_date: '2026-11-01'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: QUOTED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/intercompany-transfers:
+    post:
+      operationId: createIntercompanyTransfer
+      x-owner: commercial
+      x-stage: P3
+      x-permission: intercompany.transfer.create
+      x-error-codes: [INTERCOMPANY_POLICY_MISSING]
+      summary: createIntercompanyTransfer — DRAFT; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - source_entity_guid
+              - destination_entity_guid
+              - tax_profile_guid
+              - transfer_price_base
+              - lines
+              properties:
+                source_entity_guid:
+                  type: string
+                  format: uuid
+                destination_entity_guid:
+                  type: string
+                  format: uuid
+                tax_profile_guid:
+                  type: string
+                  format: uuid
+                transfer_price_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                lines:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - sku_guid
+                    - qty_base
+                    - source_cost_base
+                    properties:
+                      sku_guid:
+                        type: string
+                        format: uuid
+                      qty_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                      source_cost_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+            example:
+              source_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+              destination_entity_guid: 01990f5b-bbb9-7000-8000-000000000002
+              tax_profile_guid: 01990f5b-bbb9-7000-8000-000000000001
+              transfer_price_base: '120.000000'
+              lines:
+              - sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+                qty_base: '5.000000'
+                source_cost_base: '100.000000'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: commercial
+      x-stage: P3
+      x-permission: intercompany.transfer.read
+      summary: Read scoped IntercompanyTransfer state; owner is authoritative.
+      operationId: listIntercompanyTransfers
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - source_entity_guid
+                          - destination_entity_guid
+                          - tax_profile_guid
+                          - transfer_price_base
+                          - lines
+                          properties:
+                            source_entity_guid:
+                              type: string
+                              format: uuid
+                            destination_entity_guid:
+                              type: string
+                              format: uuid
+                            tax_profile_guid:
+                              type: string
+                              format: uuid
+                            transfer_price_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+                            lines:
+                              type: array
+                              minItems: 1
+                              maxItems: 200
+                              items:
+                                type: object
+                                additionalProperties: false
+                                required:
+                                - sku_guid
+                                - qty_base
+                                - source_cost_base
+                                properties:
+                                  sku_guid:
+                                    type: string
+                                    format: uuid
+                                  qty_base:
+                                    type: string
+                                    pattern: ^\d{1,14}(\.\d{1,6})?$
+                                  source_cost_base:
+                                    type: string
+                                    pattern: ^\d{1,14}(\.\d{1,6})?$
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    source_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    destination_entity_guid: 01990f5b-bbb9-7000-8000-000000000002
+                    tax_profile_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    transfer_price_base: '120.000000'
+                    lines:
+                    - sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+                      qty_base: '5.000000'
+                      source_cost_base: '100.000000'
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/intercompany-transfers/{guid}/approve:
+    post:
+      operationId: approveIntercompanyTransfer
+      x-owner: commercial
+      x-stage: P3
+      x-permission: intercompany.transfer.approve
+      x-error-codes: [INTERCOMPANY_POLICY_MISSING]
+      summary: approveIntercompanyTransfer — APPROVED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - source_approver_guid
+              - destination_approver_guid
+              - reason
+              properties:
+                source_approver_guid:
+                  type: string
+                  format: uuid
+                destination_approver_guid:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              source_approver_guid: 01990f5b-bbb9-7000-8000-000000000001
+              destination_approver_guid: 01990f5b-bbb9-7000-8000-000000000002
+              reason: Both entities approved
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/intercompany-transfers/{guid}/ship:
+    post:
+      operationId: shipIntercompanyTransfer
+      x-owner: commercial
+      x-stage: P3
+      x-permission: intercompany.transfer.ship
+      x-error-codes: [INTERCOMPANY_POLICY_MISSING]
+      summary: shipIntercompanyTransfer — SHIPPED; authoritative owner state and idempotent retry.
+      x-emits:
+      - intercompany.transfer.shipped.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - shipment_guid
+              - business_date
+              properties:
+                shipment_guid:
+                  type: string
+                  format: uuid
+                business_date:
+                  type: string
+                  format: date
+            example:
+              shipment_guid: 01990f5b-bbb9-7000-8000-000000000001
+              business_date: '2026-11-01'
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: SHIPPED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/intercompany-transfers/{guid}/receive:
+    post:
+      operationId: receiveIntercompanyTransfer
+      x-owner: commercial
+      x-stage: P3
+      x-permission: intercompany.transfer.receive
+      x-error-codes: [INTERCOMPANY_POLICY_MISSING]
+      summary: receiveIntercompanyTransfer — RECEIVED; authoritative owner state and idempotent retry.
+      x-emits:
+      - intercompany.transfer.received.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - shipment_guid
+              - received_qty_base
+              - business_date
+              properties:
+                shipment_guid:
+                  type: string
+                  format: uuid
+                received_qty_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                business_date:
+                  type: string
+                  format: date
+            example:
+              shipment_guid: 01990f5b-bbb9-7000-8000-000000000001
+              received_qty_base: '5.000000'
+              business_date: '2026-11-02'
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: RECEIVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/intercompany-transfers/{guid}/close:
+    post:
+      operationId: closeIntercompanyTransfer
+      x-owner: commercial
+      x-stage: P3
+      x-permission: intercompany.transfer.close
+      x-error-codes: [INTERCOMPANY_POLICY_MISSING]
+      summary: closeIntercompanyTransfer — CLOSED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reconciliation_hash
+              - reason
+              properties:
+                reconciliation_hash:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              reconciliation_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              reason: Due from and due to matched
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: CLOSED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/route-plans/{guid}:
+    get:
+      x-owner: commercial
+      x-stage: P2
+      x-permission: mobile.route.read
+      summary: Read scoped RoutePlan state; owner is authoritative.
+      operationId: getRoutePlan
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - salesperson_guid
+                    - route_date
+                    - customer_account_guids
+                    properties:
+                      salesperson_guid:
+                        type: string
+                        format: uuid
+                      route_date:
+                        type: string
+                        format: date
+                      customer_account_guids:
+                        type: array
+                        minItems: 1
+                        maxItems: 200
+                        items:
+                          type: string
+                          format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  salesperson_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  route_date: '2026-11-01'
+                  customer_account_guids:
+                  - 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/promotions/{guid}:
+    get:
+      x-owner: commercial
+      x-stage: P3
+      x-permission: sales.promotion.read
+      summary: Read scoped Promotion state; owner is authoritative.
+      operationId: getPromotion
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - type
+                    - priority
+                    - stack_group
+                    - discount_percent
+                    - cap_base
+                    - effective_from
+                    properties:
+                      type:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      priority:
+                        type: integer
+                        minimum: 0
+                      stack_group:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      discount_percent:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                      cap_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                      effective_from:
+                        type: string
+                        format: date
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  type: PERCENT
+                  priority: 10
+                  stack_group: EXCLUSIVE_A
+                  discount_percent: '10.000000'
+                  cap_base: '1000.000000'
+                  effective_from: '2026-11-01'
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/intercompany-transfers/{guid}:
+    get:
+      x-owner: commercial
+      x-stage: P3
+      x-permission: intercompany.transfer.read
+      summary: Read scoped IntercompanyTransfer state; owner is authoritative.
+      operationId: getIntercompanyTransfer
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - source_entity_guid
+                    - destination_entity_guid
+                    - tax_profile_guid
+                    - transfer_price_base
+                    - lines
+                    properties:
+                      source_entity_guid:
+                        type: string
+                        format: uuid
+                      destination_entity_guid:
+                        type: string
+                        format: uuid
+                      tax_profile_guid:
+                        type: string
+                        format: uuid
+                      transfer_price_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                      lines:
+                        type: array
+                        minItems: 1
+                        maxItems: 200
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - sku_guid
+                          - qty_base
+                          - source_cost_base
+                          properties:
+                            sku_guid:
+                              type: string
+                              format: uuid
+                            qty_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+                            source_cost_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  source_entity_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  destination_entity_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  tax_profile_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  transfer_price_base: '120.000000'
+                  lines:
+                  - sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+                    qty_base: '5.000000'
+                    source_cost_base: '100.000000'
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Entity:
+      name: X-Legal-Entity-Guid
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Guid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^"[1-9][0-9]*"$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable business error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: CREDIT_LIMIT_EXCEEDED
+            message: Credit hold
+            details: {}
+            request_id: req-01990f5b
+  schemas:
+    Decimal:
+      type: string
+      pattern: ^\d{1,14}(\.\d{1,6})?$
+    SignedDecimal:
+      type: string
+      pattern: ^-?\d{1,14}(\.\d{1,6})?$
+    Percent:
+      type: string
+      pattern: ^\d{1,2}(\.\d{1,6})?$
+    CreateOrder:
+      type: object
+      additionalProperties: false
+      required:
+      - customer_account_guid
+      - branch_guid
+      - business_date
+      - currency
+      - lines
+      properties:
+        customer_account_guid:
+          type: string
+          format: uuid
+        branch_guid:
+          type: string
+          format: uuid
+        business_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - sku_guid
+            - warehouse_guid
+            - qty_base
+            - manual_discount_percent
+            - entered_qty
+            - entered_uom_guid
+            properties:
+              sku_guid:
+                type: string
+                format: uuid
+              warehouse_guid:
+                type: string
+                format: uuid
+              qty_base:
+                $ref: '#/components/schemas/Decimal'
+              manual_discount_percent:
+                $ref: '#/components/schemas/Percent'
+              entered_qty: &id004
+                type: string
+                pattern: ^\d{1,14}(\.\d{1,6})?$
+              entered_uom_guid: &id003
+                type: string
+                format: uuid
+              conversion_version_guid:
+                type:
+                - string
+                - 'null'
+                format: uuid
+    Reason:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    Order:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - legal_entity_guid
+      - customer_account_guid
+      - status
+      - currency
+      - gross_total
+      - lines
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        legal_entity_guid:
+          type: string
+          format: uuid
+        customer_account_guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - SUBMITTED
+          - WAITING_APPROVAL
+          - APPROVED_PENDING_RESERVATION
+          - ALLOCATABLE
+          - BACKORDERED
+          - PARTIALLY_FULFILLED
+          - FULFILLED
+          - CANCELLED
+          - EXCEPTION
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        gross_total:
+          $ref: '#/components/schemas/Decimal'
+        pending_owner:
+          type:
+          - string
+          - 'null'
+          enum:
+          - PLATFORM
+          - COMMERCIAL
+          - OPERATIONS
+          - FINANCE
+          - null
+        lines:
+          type: array
+          items:
+            type: object
+            required:
+            - guid
+            - sku_guid
+            - qty_base
+            - net
+            - tax
+            - gross
+            - warehouse_guid
+            - entered_qty
+            - entered_uom_guid
+            - conversion_version_guid
+            properties:
+              guid:
+                type: string
+                format: uuid
+              sku_guid:
+                type: string
+                format: uuid
+              qty_base:
+                $ref: '#/components/schemas/Decimal'
+              net:
+                $ref: '#/components/schemas/Decimal'
+              tax:
+                $ref: '#/components/schemas/Decimal'
+              gross:
+                $ref: '#/components/schemas/Decimal'
+              warehouse_guid: *id003
+              entered_qty: *id004
+              entered_uom_guid: *id003
+              conversion_version_guid:
+                type:
+                - string
+                - 'null'
+                format: uuid
+        version:
+          type: integer
+          minimum: 1
+    Exposure:
+      type: object
+      additionalProperties: false
+      required:
+      - account_guid
+      - limit_base
+      - gross_exposure_base
+      - eligible_deposit_base
+      - net_exposure_base
+      - available_base
+      - currency
+      - as_of
+      properties:
+        account_guid:
+          type: string
+          format: uuid
+        limit_base:
+          $ref: '#/components/schemas/Decimal'
+        gross_exposure_base:
+          $ref: '#/components/schemas/Decimal'
+        eligible_deposit_base:
+          $ref: '#/components/schemas/Decimal'
+        net_exposure_base:
+          $ref: '#/components/schemas/Decimal'
+        available_base:
+          $ref: '#/components/schemas/SignedDecimal'
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        as_of:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string
+    CommandReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - version
+      - operation_guid
+      properties:
+        guid: &id005
+          type: string
+          format: uuid
+        status:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        operation_guid: *id005
+    ReversalHoldRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - original_payment_guid
+      - reversal_operation_guid
+      - reason
+      properties:
+        original_payment_guid: *id001
+        reversal_operation_guid: *id001
+        reason:
+          type: string
+          minLength: 3
+    ReversalHold:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - credit_account_guid
+      - original_payment_guid
+      - status
+      - version
+      properties:
+        guid: *id001
+        credit_account_guid: *id001
+        original_payment_guid: *id001
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - RELEASED
+        version:
+          type: integer
+          minimum: 1
+    ReleaseHoldRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      - outcome
+      properties:
+        reason:
+          type: string
+          minLength: 3
+        outcome:
+          type: string
+          enum:
+          - REVERSAL_APPLIED
+          - REVERSAL_ABSENT
+        finance_reversal_guid: *id001
+        finance_reversal_absent:
+          const: true
+      oneOf:
+      - properties:
+          outcome:
+            const: REVERSAL_APPLIED
+        required:
+        - finance_reversal_guid
+        not:
+          required:
+          - finance_reversal_absent
+      - properties:
+          outcome:
+            const: REVERSAL_ABSENT
+        required:
+        - finance_reversal_absent
+        not:
+          required:
+          - finance_reversal_guid

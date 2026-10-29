@@ -1,0 +1,24 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000131",
+  "type": "finance.sales_invoice.issued.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000035",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000331",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000431",
+  "causation_id": null,
+  "data": {
+    "invoice_guid": "01990f5b-bbb9-7000-8000-000000000035",
+    "customer_account_guid": "01990f5b-bbb9-7000-8000-000000000022",
+    "business_date": "2026-10-28",
+    "gross_base": "666.000000",
+    "journal_guid": "01990f5b-bbb9-7000-8000-000000000036",
+    "source_portion_guids": [
+      "01990f5b-bbb9-7000-8000-000000000034"
+    ]
+  }
+}

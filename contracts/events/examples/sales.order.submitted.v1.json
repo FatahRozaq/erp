@@ -1,0 +1,21 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000124",
+  "type": "sales.order.submitted.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000026",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000324",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000424",
+  "causation_id": null,
+  "data": {
+    "sales_order_guid": "01990f5b-bbb9-7000-8000-000000000026",
+    "revision": 1,
+    "maker_guid": "01990f5b-bbb9-7000-8000-000000000050",
+    "gross_total_base": "1110.000000",
+    "approval_policy_version_guid": "01990f5b-bbb9-7000-8000-000000000025"
+  }
+}

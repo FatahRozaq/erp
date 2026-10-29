@@ -1,0 +1,1081 @@
+openapi: 3.1.1
+info:
+  title: ERP Accounting and Reporting API
+  version: 1.0.0
+  description: Manual journals, period control, trial balance and P&L. Automatic postings are internal
+    Finance transactions.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/accounting/journals:
+    post:
+      operationId: createManualJournal
+      x-permission: accounting.journal.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJournal'
+            example:
+              business_date: '2026-10-28'
+              currency: IDR
+              reason: Opening correction
+              lines:
+              - account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                debit_base: '1'
+                credit_base: '0'
+              - account_guid: 01990f5b-bbb9-7000-8000-000000000002
+                debit_base: '0'
+                credit_base: '1'
+      responses:
+        '201':
+          description: Draft balanced journal for checker approval.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Journal'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                business_date: '2026-10-28'
+                debit_total_base: '666'
+                credit_total_base: '666'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/accounting/journals/{guid}/post:
+    post:
+      operationId: postManualJournal
+      x-permission: accounting.journal.post
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+            example:
+              reason: example
+      responses:
+        '200':
+          description: Journal POSTED after maker-checker, period, account and debit-credit checks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Journal'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                business_date: '2026-10-28'
+                debit_total_base: '666'
+                credit_total_base: '666'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/accounting/journals/{guid}/reverse:
+    post:
+      operationId: reverseJournal
+      x-permission: accounting.journal.reverse
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReversalRequest'
+            example:
+              business_date: '2026-10-28'
+              reason: example
+      responses:
+        '201':
+          description: New inverse journal; original remains immutable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Journal'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: REVERSED
+                business_date: '2026-10-28'
+                debit_total_base: '666'
+                credit_total_base: '666'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/accounting/fiscal-periods/{guid}/close:
+    post:
+      operationId: closeFiscalPeriod
+      x-permission: accounting.period.close
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseRequest'
+            example:
+              cutoff_at: '2026-10-28T10:00:00Z'
+              attestation_guids:
+              - 01990f5b-bbb9-7000-8000-000000000001
+              - 01990f5b-bbb9-7000-8000-000000000002
+              - 01990f5b-bbb9-7000-8000-000000000003
+              reason: example
+      responses:
+        '200':
+          description: CLOSED only when owner attestations and reconciliation pass.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Period'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                period_start: '2026-10-28'
+                period_end: '2026-10-28'
+                status: CLOSED
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/accounting/fiscal-periods/{guid}/reopen:
+    post:
+      operationId: reopenFiscalPeriod
+      x-permission: accounting.period.reopen
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+            example:
+              reason: example
+      responses:
+        '200':
+          description: Reopened with two-person approval and permanent audit trail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Period'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                period_start: '2026-10-28'
+                period_end: '2026-10-28'
+                status: OPEN
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/accounting/reports/trial-balance:
+    get:
+      operationId: getTrialBalance
+      x-permission: accounting.report.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: period_guid
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Per-account balances with watermark; debit equals credit for posted journals.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrialBalance'
+              example:
+                period_guid: 01990f5b-bbb9-7000-8000-000000000001
+                generated_at: '2026-10-28T10:00:00Z'
+                watermark: '2026-10-28T10:00:00Z'
+                debit_total_base: '666'
+                credit_total_base: '666'
+                rows:
+                - account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  debit_base: '666'
+                  credit_base: '666'
+                  closing_balance_base: '0'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/accounting/reports/pnl:
+    get:
+      operationId: getProfitLoss
+      x-permission: accounting.report.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: period_guid
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Provisional for open period, fixed watermark for closed period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfitLoss'
+              example:
+                period_guid: 01990f5b-bbb9-7000-8000-000000000001
+                generated_at: '2026-10-28T10:00:00Z'
+                watermark: '2026-10-28T10:00:00Z'
+                provisional: false
+                revenue_base: '600'
+                expense_base: '330'
+                profit_base: '270'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/accounting/accounts:
+    post:
+      operationId: createAccount
+      x-owner: finance
+      x-permission: accounting.coa.manage
+      summary: 'createAccount: DRAFT'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                account_type:
+                  type: string
+                  enum:
+                  - ASSET
+                  - LIABILITY
+                  - EQUITY
+                  - REVENUE
+                  - EXPENSE
+                currency:
+                  type:
+                  - string
+                  - 'null'
+                  pattern: ^[A-Z]{3}$
+              required:
+              - code
+              - name
+              - account_type
+            example:
+              code: PILOT-01
+              name: Pilot entity
+              account_type: ASSET
+      responses:
+        '201':
+          description: DRAFT state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: ACCOUNT_CODE_EXISTS
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - ACCOUNT_CODE_EXISTS
+  /api/v1/accounting/accounts/{guid}/publish:
+    post:
+      operationId: publishAccount
+      x-owner: finance
+      x-permission: accounting.coa.manage
+      summary: 'publishAccount: ACTIVE'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: ACTIVE state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: ACCOUNT_DIMENSION_INVALID
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - ACCOUNT_DIMENSION_INVALID
+  /api/v1/accounting/posting-rules:
+    post:
+      operationId: createPostingRule
+      x-owner: finance
+      x-permission: accounting.rule.manage
+      summary: 'createPostingRule: DRAFT'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                source_type: &id001
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                action: *id001
+                leg: *id001
+                account_guid:
+                  type: string
+                  format: uuid
+                effective_from:
+                  type: string
+                  format: date
+                effective_to:
+                  type:
+                  - string
+                  - 'null'
+                  format: date
+              required:
+              - source_type
+              - action
+              - leg
+              - account_guid
+              - effective_from
+            example:
+              source_type: pilot-reference
+              action: pilot-reference
+              leg: pilot-reference
+              account_guid: 01990f5b-bbb9-7000-8000-000000000002
+              effective_from: '2026-10-28'
+      responses:
+        '201':
+          description: DRAFT state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: POSTING_RULE_OVERLAP
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - POSTING_RULE_OVERLAP
+  /api/v1/accounting/posting-rules/{guid}/activate:
+    post:
+      operationId: activatePostingRule
+      x-owner: finance
+      x-permission: accounting.rule.activate
+      summary: 'activatePostingRule: ACTIVE'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                simulation_hash:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - simulation_hash
+              - reason
+            example:
+              simulation_hash: pilot-reference
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: ACTIVE state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: POSTING_RULE_OVERLAP
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - POSTING_RULE_OVERLAP
+      - ACCOUNT_INACTIVE
+  /api/v1/accounting/fiscal-periods/{guid}/attestations:
+    post:
+      operationId: recordCloseAttestation
+      x-owner: finance
+      x-permission: accounting.period.attest
+      summary: 'recordCloseAttestation: ATTESTED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                owner:
+                  type: string
+                  enum:
+                  - PLATFORM
+                  - COMMERCIAL
+                  - OPERATIONS
+                  - FINANCE
+                watermark: &id002
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                pending_count:
+                  type: integer
+                  minimum: 0
+                reconciliation_hash: *id002
+                expires_at:
+                  type: string
+                  format: date-time
+              required:
+              - owner
+              - watermark
+              - pending_count
+              - reconciliation_hash
+              - expires_at
+            example:
+              owner: OPERATIONS
+              watermark: pilot-reference
+              pending_count: 1
+              reconciliation_hash: pilot-reference
+              expires_at: '2026-10-28T10:00:00Z'
+      responses:
+        '201':
+          description: ATTESTED state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ATTESTED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: CLOSE_ATTESTATION_STALE
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - CLOSE_ATTESTATION_STALE
+  /api/v1/accounting/reports/stock-valuation:
+    get:
+      operationId: getStockValuationReport
+      x-owner: finance
+      x-permission: accounting.report.read
+      summary: Valuation as of date, cost policy version, inventory GL control delta and watermark.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: as_of
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: warehouse_guid
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      responses:
+        '200':
+          description: Valuation as of date, cost policy version, inventory GL control delta and watermark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/getStockValuationReportResult'
+              example:
+                as_of: '2026-10-28'
+                currency: IDR
+                watermark: '2026-10-28T10:00:00Z'
+                generated_at: '2026-10-28T10:00:00Z'
+                rows:
+                - warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  quantity_base: '10'
+                  unit_cost_base: '11'
+                  value_base: '110'
+                  gl_control_delta_base: '0'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Entity:
+      name: X-Legal-Entity-Guid
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Guid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^"[1-9][0-9]*"$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable accounting error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: PERIOD_CLOSE_RECONCILIATION_PENDING
+            message: Pending source reconciliation
+            details: {}
+            request_id: req-01990f5b
+  schemas:
+    Money:
+      type: string
+      pattern: ^\d{1,14}(\.\d{1,6})?$
+    CreateJournal:
+      type: object
+      additionalProperties: false
+      required:
+      - business_date
+      - currency
+      - reason
+      - lines
+      properties:
+        business_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+        lines:
+          type: array
+          minItems: 2
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/JournalLineRequest'
+    JournalLineRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - account_guid
+      - debit_base
+      - credit_base
+      properties:
+        account_guid:
+          type: string
+          format: uuid
+        branch_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        cost_center_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        debit_base:
+          $ref: '#/components/schemas/Money'
+        credit_base:
+          $ref: '#/components/schemas/Money'
+    Journal:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - business_date
+      - debit_total_base
+      - credit_total_base
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - SUBMITTED
+          - APPROVED
+          - POSTED
+          - REVERSED
+        business_date:
+          type: string
+          format: date
+        debit_total_base:
+          $ref: '#/components/schemas/Money'
+        credit_total_base:
+          $ref: '#/components/schemas/Money'
+        source_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        reversal_of_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+    ReversalRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - business_date
+      - reason
+      properties:
+        business_date:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    Reason:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    CloseRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - cutoff_at
+      - attestation_guids
+      - reason
+      properties:
+        cutoff_at:
+          type: string
+          format: date-time
+        attestation_guids:
+          type: array
+          minItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    Period:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - period_start
+      - period_end
+      - status
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+          - OPEN
+          - CLOSED
+        version:
+          type: integer
+          minimum: 1
+    TrialBalance:
+      type: object
+      additionalProperties: false
+      required:
+      - period_guid
+      - generated_at
+      - watermark
+      - debit_total_base
+      - credit_total_base
+      - rows
+      properties:
+        period_guid:
+          type: string
+          format: uuid
+        generated_at:
+          type: string
+          format: date-time
+        watermark:
+          type: string
+        debit_total_base:
+          $ref: '#/components/schemas/Money'
+        credit_total_base:
+          $ref: '#/components/schemas/Money'
+        rows:
+          type: array
+          items:
+            type: object
+            required:
+            - account_guid
+            - debit_base
+            - credit_base
+            - closing_balance_base
+            properties:
+              account_guid:
+                type: string
+                format: uuid
+              debit_base:
+                $ref: '#/components/schemas/Money'
+              credit_base:
+                $ref: '#/components/schemas/Money'
+              closing_balance_base:
+                type: string
+                pattern: ^-?\d{1,14}(\.\d{1,6})?$
+    ProfitLoss:
+      type: object
+      additionalProperties: false
+      required:
+      - period_guid
+      - generated_at
+      - watermark
+      - provisional
+      - revenue_base
+      - expense_base
+      - profit_base
+      properties:
+        period_guid:
+          type: string
+          format: uuid
+        generated_at:
+          type: string
+          format: date-time
+        watermark:
+          type: string
+        provisional:
+          type: boolean
+        revenue_base:
+          $ref: '#/components/schemas/Money'
+        expense_base:
+          $ref: '#/components/schemas/Money'
+        profit_base:
+          type: string
+          pattern: ^-?\d{1,14}(\.\d{1,6})?$
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string
+    CommandReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - version
+      - operation_guid
+      properties:
+        guid: &id003
+          type: string
+          format: uuid
+        status:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        operation_guid: *id003
+    getStockValuationReportResult:
+      type: object
+      additionalProperties: false
+      required:
+      - as_of
+      - currency
+      - watermark
+      - generated_at
+      - rows
+      properties:
+        as_of:
+          type: string
+          format: date
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        watermark:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValuationRow'
+    ValuationRow:
+      type: object
+      additionalProperties: false
+      required:
+      - warehouse_guid
+      - sku_guid
+      - quantity_base
+      - unit_cost_base
+      - value_base
+      - gl_control_delta_base
+      properties:
+        warehouse_guid: &id004
+          type: string
+          format: uuid
+        sku_guid: *id004
+        quantity_base: &id005
+          type: string
+          pattern: ^-?\d{1,14}(\.\d{1,6})?$
+        unit_cost_base: *id005
+        value_base: *id005
+        gl_control_delta_base: *id005

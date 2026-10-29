@@ -1,0 +1,21 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000017",
+  "type": "manufacturing.work_order.issued.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000117",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000425",
+  "causation_id": null,
+  "data": {
+    "work_order_guid": "01990f5b-bbb9-7000-8000-000000000001",
+    "component_sku_guid": "01990f5b-bbb9-7000-8000-000000000002",
+    "movement_guid": "01990f5b-bbb9-7000-8000-000000000003",
+    "qty_base": "6.000000",
+    "cost_base": "60.000000"
+  }
+}

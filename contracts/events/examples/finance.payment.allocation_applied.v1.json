@@ -1,0 +1,24 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000126",
+  "type": "finance.payment.allocation_applied.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000041",
+  "aggregate_version": 4,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000326",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000425",
+  "causation_id": null,
+  "data": {
+    "payment_guid": "01990f5b-bbb9-7000-8000-000000000041",
+    "party_account_guid": "01990f5b-bbb9-7000-8000-000000000022",
+    "payment_type": "CUSTOMER_RECEIPT",
+    "allocation_guid": "01990f5b-bbb9-7000-8000-000000000044",
+    "open_item_guid": "01990f5b-bbb9-7000-8000-000000000002",
+    "amount_base": "20.000000",
+    "unapplied_remaining_base": "320.000000",
+    "journal_guid": "01990f5b-bbb9-7000-8000-000000000045"
+  }
+}

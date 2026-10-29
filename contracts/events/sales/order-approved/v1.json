@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://erp.example.invalid/contracts/events/sales/order-approved/v1.json",
+  "title": "sales.order.approved.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "type",
+    "schema_version",
+    "aggregate_guid",
+    "aggregate_version",
+    "tenant_guid",
+    "legal_entity_guid",
+    "business_operation_guid",
+    "occurred_at",
+    "recorded_at",
+    "correlation_id",
+    "causation_id",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "const": "sales.order.approved.v1"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "aggregate_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tenant_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "legal_entity_guid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "business_operation_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sales_order_guid",
+        "revision",
+        "customer_account_guid",
+        "lines"
+      ],
+      "properties": {
+        "sales_order_guid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "customer_account_guid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sales_order_line_guid",
+              "sku_guid",
+              "warehouse_guid",
+              "qty_base"
+            ],
+            "properties": {
+              "sales_order_line_guid": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "sku_guid": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "warehouse_guid": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "qty_base": {
+                "type": "string",
+                "pattern": "^\\d{1,14}(\\.\\d{1,6})?$"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

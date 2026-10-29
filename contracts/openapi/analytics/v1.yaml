@@ -1,0 +1,420 @@
+openapi: 3.1.1
+info:
+  title: ERP Analytics Roadmap API
+  version: 1.0.0
+  description: Contract for bounded Enterprise Expansion owner operations.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/analytics/metrics:
+    get:
+      operationId: getMetricSnapshot
+      x-owner: platform
+      x-stage: EXP
+      x-permission: analytics.metric.read
+      x-error-codes: [ANALYTICS_SOURCE_STALE]
+      summary: getMetricSnapshot — READY; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: metric_code
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 500
+        example: GROSS_REVENUE
+      - name: as_of
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+        example: '2026-11-01T10:00:00Z'
+      responses:
+        '200':
+          description: Scoped read-only snapshot with source watermark.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - status
+                - as_of
+                - watermark
+                - formula_version
+                - items
+                properties:
+                  status:
+                    type: string
+                  as_of:
+                    type: string
+                    format: date-time
+                  watermark:
+                    type: integer
+                    minimum: 0
+                  formula_version:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - code
+                      - value_base
+                      properties:
+                        code:
+                          type: string
+                        value_base:
+                          type: string
+                          pattern: ^\d{1,14}(\.\d{1,6})?$
+              example:
+                status: READY
+                as_of: '2026-11-01T10:00:00Z'
+                watermark: 100
+                formula_version: v1
+                items:
+                - code: PILOT
+                  value_base: '100.000000'
+        default:
+          description: Stable ERP error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/analytics/forecasts:
+    post:
+      operationId: runForecast
+      x-owner: platform
+      x-stage: EXP
+      x-permission: analytics.forecast.run
+      x-error-codes: [ANALYTICS_SOURCE_STALE]
+      summary: runForecast — QUEUED; authoritative owner state and idempotent retry.
+      x-emits:
+      - analytics.forecast.completed.v1
+      x-emits-on-status: COMPLETED
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - model_version
+              - dataset_watermark
+              - horizon_days
+              - warehouse_guid
+              properties:
+                model_version:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                dataset_watermark:
+                  type: integer
+                  minimum: 0
+                horizon_days:
+                  type: integer
+                  minimum: 0
+                warehouse_guid:
+                  type: string
+                  format: uuid
+            example:
+              model_version: demand-v1
+              dataset_watermark: 100
+              horizon_days: 30
+              warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+      responses:
+        '202':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: QUEUED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: platform
+      x-stage: EXP
+      x-permission: analytics.forecast.read
+      summary: Read scoped ForecastRun state; owner is authoritative.
+      operationId: listForecastRuns
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - model_version
+                          - dataset_watermark
+                          - horizon_days
+                          - warehouse_guid
+                          properties:
+                            model_version:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            dataset_watermark:
+                              type: integer
+                              minimum: 0
+                            horizon_days:
+                              type: integer
+                              minimum: 0
+                            warehouse_guid:
+                              type: string
+                              format: uuid
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    model_version: demand-v1
+                    dataset_watermark: 100
+                    horizon_days: 30
+                    warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/analytics/forecasts/{guid}:
+    get:
+      x-owner: platform
+      x-stage: EXP
+      x-permission: analytics.forecast.read
+      summary: Read scoped ForecastRun state; owner is authoritative.
+      operationId: getForecastRun
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - model_version
+                    - dataset_watermark
+                    - horizon_days
+                    - warehouse_guid
+                    properties:
+                      model_version:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      dataset_watermark:
+                        type: integer
+                        minimum: 0
+                      horizon_days:
+                        type: integer
+                        minimum: 0
+                      warehouse_guid:
+                        type: string
+                        format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  model_version: demand-v1
+                  dataset_watermark: 100
+                  horizon_days: 30
+                  warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string

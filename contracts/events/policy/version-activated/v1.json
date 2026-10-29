@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://erp.example.invalid/contracts/events/policy/version-activated/v1.json",
+  "title": "policy.version.activated.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "type",
+    "schema_version",
+    "aggregate_guid",
+    "aggregate_version",
+    "tenant_guid",
+    "legal_entity_guid",
+    "business_operation_guid",
+    "occurred_at",
+    "recorded_at",
+    "correlation_id",
+    "causation_id",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "const": "policy.version.activated.v1"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "aggregate_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tenant_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "legal_entity_guid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "business_operation_guid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_guid",
+        "policy_type",
+        "effective_from",
+        "activation_guid"
+      ],
+      "properties": {
+        "policy_guid": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "policy_type": {
+          "enum": [
+            "TAX",
+            "PRICE",
+            "CREDIT",
+            "APPROVAL",
+            "POSTING",
+            "NUMBERING"
+          ]
+        },
+        "effective_from": {
+          "type": "string",
+          "format": "date"
+        },
+        "activation_guid": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  }
+}

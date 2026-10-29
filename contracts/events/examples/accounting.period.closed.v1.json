@@ -1,0 +1,21 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000127",
+  "type": "accounting.period.closed.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000044",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000327",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000427",
+  "causation_id": null,
+  "data": {
+    "period_guid": "01990f5b-bbb9-7000-8000-000000000044",
+    "period_start": "2026-10-01",
+    "period_end": "2026-10-31",
+    "closed_at": "2026-11-01T00:00:00Z",
+    "reconciliation_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

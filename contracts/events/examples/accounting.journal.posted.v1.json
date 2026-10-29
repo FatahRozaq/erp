@@ -1,0 +1,22 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000104",
+  "type": "accounting.journal.posted.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000017",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000003",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000204",
+  "occurred_at": "2026-10-28T04:00:01Z",
+  "recorded_at": "2026-10-28T04:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000303",
+  "causation_id": "01990f5b-bbb9-7000-8000-000000000103",
+  "data": {
+    "journal_guid": "01990f5b-bbb9-7000-8000-000000000017",
+    "source_type": "GOODS_RECEIPT",
+    "source_guid": "01990f5b-bbb9-7000-8000-000000000013",
+    "business_date": "2026-10-28",
+    "debit_base": "600.000000",
+    "credit_base": "600.000000"
+  }
+}

@@ -1,0 +1,39 @@
+# UX-003 — Detail layar kritikal Foundation+MVP
+
+**Status:** wireframe tekstual dan kontrak field sebelum UI dibuat. [Peta route](mvp-ux-screen-map.md) adalah indeks seluruh layar; dokumen ini menutup layar yang memengaruhi uang, stok, privilege, PII atau data massal. Setiap field input mengikuti schema OpenAPI kanonik; field server-calculated hanya display. Target uji aksesibilitas adalah [WCAG 2.2 AA](https://www.w3.org/TR/WCAG22/), dengan bukti runtime saat UI ada.
+
+## Pola wireframe dan state yang dipakai semua layar
+
+```
+Tenant / Legal Entity / Branch [context]   [session] [notification]
+Breadcrumb > Halaman > GUID/nomor dokumen       Status + version + as-of
+Filter/list atau form; angka original/base, UOM dan policy version tampak
+Preview server authoritative | exception panel | history/audit timeline
+Primary action [permission + state]  Secondary action  Download/help
+```
+
+Navigasi keyboard mengikuti urutan baca; fokus kembali ke judul/error setelah perubahan route, dialog trap focus dan Escape menutup bila aman. Error field terhubung `aria-describedby`, summary error mendapat fokus setelah submit gagal, status async memakai live region tanpa spam. Warna bukan satu-satunya pembeda state. Tabel mendukung header, caption, pagination/focus stabil dan export alternatif. Input jumlah memakai teks desimal lokal untuk tampil, dikirim decimal string kanonik; server menampilkan hasil pembulatan/policy. Skeleton hanya ketika fetch awal; refresh mempertahankan data lama dengan label `Memperbarui`, bukan menghilangkan aksi tanpa penjelasan. Semua destructive action memerlukan dialog reason dan menampilkan dampak sebelum submit.
+
+| Layar/route | Field input dan preview wajib | Aksi menurut role/state | Empty/loading/error/pending yang harus tampak |
+|---|---|---|---|
+| `/settings/organization`, `/settings/access/users`, `/settings/access/roles` | tree tenant/company/entity/branch/warehouse; invite email, role, scope, effective interval; diff grant, session version | Security Admin invite/grant/revoke/suspend; checker approve privilege; read-only untuk auditor | empty katalog/undangan; scope picker disabled di luar grantor; 412 diff; revoke selesai banner dan login ulang; user sendiri tak boleh self elevate |
+| `/settings/policies`, `/settings/tax`, `/settings/numbering` | type/version/hash, fixture input/output, date range, approvers, tax DPP/rate/gross, sequence next value read-only | Process/Tax/Finance owner simulate/test/publish/activate; checker kedua; numbering admin lihat saja | policy absent 422 dengan owner/CTA; rule overlap menyorot interval; 202 aktivasi pending; no silent fallback |
+| `/master/customers/[guid]`, `/master/vendors/[guid]` | identity + per entity account; name, terms, tax class, bank masked, credit limit masked by permission, address version; proposal before/after masked | Steward edit non-sensitive; maker propose sensitive; checker approve; deactivate/merge hanya bila eligible | no account di entity menampilkan create; bank pending badge; 403 masked; in-use 422 menunjukkan jenis dependency tanpa PII; alias history terlihat |
+| `/sales/orders/[guid]`, `/credit/accounts/[guid]` | customer/branch/warehouse, SKU/UOM/base qty, price/discount/tax/net/gross, exposure buckets/available, policy refs, reservation progress | Sales draft/revise/submit/cancel; approver decide; Credit Controller override; dispatch hanya setelah credit recheck | no price/tax 422; credit hold dengan angka aman; 412 line diff; pending release/reservation jelas; partial shipped dan open qty per line |
+| `/purchase/orders/[guid]`, `/inventory/receipts/[guid]` | vendor account, line qty price tax, approved/received/remaining, warehouse/lot/expiry/inspection/evidence; match preview | Buyer amend/submit; receiver create/post; checker approve | vendor inactive; over receipt qty error per line; GRN post pending event; amendment limit release pending; no stock optimistic |
+| `/inventory/stock`, `/inventory/adjustments/[guid]` | as-of, status, lot/serial, sellable/held/in transit, book/count/delta, evidence/cost | Controller draft/approve/post/reverse; viewer scoped query | no stock is zero with as-of, stale watermark warning, adjustment downstream consumed 422, posted immutable badge |
+| `/warehouse/picks/[guid]`, `/warehouse/deliveries/[guid]` | task lease, source reservation, scan SKU/lot/serial, picked/packed/shipped/accepted/rejected/in-transit, evidence checksum/recipient | Picker claim/scan/complete; packer pack; dispatcher partial dispatch; driver/receiver POD; checker correction pre-invoice | camera denied/manual scan route; wrong serial immediate error; lease expired; pending Inventory ack; POD partial remains actionable; invoiced correction blocked |
+| `/finance/sales-invoices/[guid]`, `/finance/vendor-invoices/[guid]` | source portions, tax/cost/FX/period, PO-GRN-invoice 3 columns, net/tax/gross, journal preview | AR/AP draft/match/issue; checker void eligible doc; issued read-only | no eligible portion, tax/period missing, match exception with line reason, 202 posting pending, issued only after local journal commit |
+| `/finance/receipts`, `/finance/payments`, `/finance/tax-documents/[guid]` | party, bank ref/evidence, gross/fee/allocations/unapplied, open item/due date, checker, tax export checksum/status | Cashier draft, approver approve, poster post, controller reverse/reallocate; Tax owner update status | duplicate bank ref, allocation overflow, unapplied visible, tax rejected exception; posted amount never editable |
+| `/accounting/journals/[guid]`, `/accounting/periods` | COA/dimension, debit/credit/base, source/rule/period; owner attestations, watermark, aging GRNI, reconciliation delta | Accountant create/post/reverse; Controller close/reopen with two approvers | imbalance highlighting, stale attestation with owner/action, close pending counts, closed badge; no forced close |
+| `/data/imports/[guid]`, `/reports/*`, `/notifications` | template exact header, file hash, row outcome/code; report entity/as-of/watermark; notification source | Steward preview/commit/download row result; Analyst run/export; recipient acknowledge | 100 row/3 invalid count, changed hash 409, report queued/expired, scoped download 404, notification revoked scope disappears |
+
+## Interaksi numerik dan izin
+
+SO wireframe wajib menampilkan `qty 5 pcs × unit 200 = net 1.000`, tax sesuai policy, gross dan exposure yang dihitung server; klik submit dengan nilai beda dari preview memunculkan refresh dan tidak membuat order. Delivery menunjukkan `shipped 5 = accepted 3 + rejected 1 + in transit 1`, sehingga tombol invoice hanya menampilkan 3 eligible. Pembayaran menampilkan `amount 100 = allocated 60 + unapplied 40 + fee 0`; poster melihat journal preview dan checker identity. Period close menunjukkan setiap owner `watermark/pending_count/hash`, GRNI aging terjelaskan, serta tombol Close disabled dengan alasan granular.
+
+Role dan permission tidak hanya menyembunyikan tombol: direct URL/action diuji server. Entity switch membatalkan selection, cached rows, form draft lintas scope, signed URL dan background polling lama; halaman menampilkan entity baru sebelum menerima mutasi. Query URL tidak menyimpan PII. Upload memakai progress dan scan pending, tidak mengizinkan preview file sebelum CLEAN. Export menggunakan job dengan expiry dan audit tiap download. Untuk mobile online pilot, gunakan state ekuivalen pada POD/approval; offline produksi tetap Phase 2.
+
+## Review desain sebelum UI merge
+
+Product Designer dan process owner meninjau wireframe layar yang sedang dibangun, copy error per status, alur keyboard/screen reader, ukuran target, responsive 320 px dan data table, locale tanggal/angka, serta PII masking. Ini adalah verifikasi implementasi UI, bukan keputusan produk yang boleh ditunda ke coding. [Vektor uji](../quality/mvp-contract-vectors.md) memberi expected field/state untuk fixture sintetis.

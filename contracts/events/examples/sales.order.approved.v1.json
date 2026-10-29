@@ -1,0 +1,27 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000123",
+  "type": "sales.order.approved.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000026",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000323",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000423",
+  "causation_id": null,
+  "data": {
+    "sales_order_guid": "01990f5b-bbb9-7000-8000-000000000026",
+    "revision": 1,
+    "customer_account_guid": "01990f5b-bbb9-7000-8000-000000000022",
+    "lines": [
+      {
+        "sales_order_line_guid": "01990f5b-bbb9-7000-8000-000000000027",
+        "sku_guid": "01990f5b-bbb9-7000-8000-000000000028",
+        "warehouse_guid": "01990f5b-bbb9-7000-8000-000000000029",
+        "qty_base": "5.000000"
+      }
+    ]
+  }
+}

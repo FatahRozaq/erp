@@ -1,0 +1,19 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000121",
+  "type": "iam.user.suspended.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000020",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000321",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000421",
+  "causation_id": null,
+  "data": {
+    "user_guid": "01990f5b-bbb9-7000-8000-000000000020",
+    "session_version": 2,
+    "reason_code": "ADMIN_SUSPEND"
+  }
+}

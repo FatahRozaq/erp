@@ -1,0 +1,33 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000101",
+  "type": "master.product.published.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000011",
+  "aggregate_version": 2,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": null,
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000201",
+  "occurred_at": "2026-10-28T02:00:00Z",
+  "recorded_at": "2026-10-28T02:00:00Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000301",
+  "causation_id": null,
+  "data": {
+    "sku_guid": "01990f5b-bbb9-7000-8000-000000000011",
+    "code": "SKU-A",
+    "base_uom_guid": "01990f5b-bbb9-7000-8000-000000000002",
+    "valuation_class": "MOVING_AVERAGE",
+    "tax_class": "NON_LUXURY",
+    "product_category": "STOCKED",
+    "lot_required": false,
+    "serial_required": false,
+    "conversion_versions": [
+      {
+        "conversion_guid": "01990f5b-bbb9-7000-8000-000000000003",
+        "uom_guid": "01990f5b-bbb9-7000-8000-000000000002",
+        "numerator": 12,
+        "denominator": 1,
+        "effective_from": "2026-10-28"
+      }
+    ]
+  }
+}

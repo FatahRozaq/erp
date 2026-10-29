@@ -1,0 +1,3399 @@
+openapi: 3.1.1
+info:
+  title: ERP Finance AR AP API
+  version: 1.0.0
+  description: MVP invoices, three-way match, receipts, supplier payments and open items. ISSUED/POSTED
+    always has a posted local Finance journal.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/finance/sales-invoices:
+    post:
+      operationId: createSalesInvoiceDraft
+      x-permission: finance.invoice.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesInvoiceDraftRequest'
+            example:
+              customer_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              business_date: '2026-10-28'
+              source_portion_guids:
+              - 01990f5b-bbb9-7000-8000-000000000002
+      responses:
+        '201':
+          description: Draft with authoritative tax/cost/source quote.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                invoice_type: SALES
+                status: DRAFT
+                currency: IDR
+                net: '600'
+                tax: '66'
+                gross: '666'
+                lines:
+                - source_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '3'
+                  net: '600'
+                  tax: '66'
+                  gross: '666'
+                  match_status: MATCHED
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/sales-invoices/{guid}/issue:
+    post:
+      operationId: issueSalesInvoice
+      x-permission: finance.invoice.issue
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Invoice ISSUED and journal POSTED in one Finance transaction; failure rolls back
+            both.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                invoice_type: SALES
+                status: ISSUED
+                currency: IDR
+                net: '600'
+                tax: '66'
+                gross: '666'
+                lines:
+                - source_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '3'
+                  net: '600'
+                  tax: '66'
+                  gross: '666'
+                  match_status: MATCHED
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/vendor-invoices:
+    post:
+      operationId: createVendorInvoiceDraft
+      x-permission: finance.vendor_invoice.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorInvoiceDraftRequest'
+            example:
+              vendor_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              vendor_invoice_no: INV-VEN-001
+              tax_period: 2026-10
+              business_date: '2026-10-28'
+              lines:
+              - purchase_order_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                goods_receipt_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                qty_base: '10'
+                unit_net_price: '100'
+      responses:
+        '201':
+          description: Draft or MATCH_EXCEPTION; no AP/GL until exact match and issue.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                invoice_type: VENDOR
+                status: DRAFT
+                currency: IDR
+                net: '1000'
+                tax: '110'
+                gross: '1110'
+                lines:
+                - source_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '10'
+                  net: '1000'
+                  tax: '110'
+                  gross: '1110'
+                  match_status: MATCHED
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/vendor-invoices/{guid}/match:
+    post:
+      operationId: matchVendorInvoice
+      x-permission: finance.vendor_invoice.match
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Exact PO/GRN/price match result and per-line exception details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                invoice_type: VENDOR
+                status: READY
+                currency: IDR
+                net: '1000'
+                tax: '110'
+                gross: '1110'
+                lines:
+                - source_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '10'
+                  net: '1000'
+                  tax: '110'
+                  gross: '1110'
+                  match_status: MATCHED
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/vendor-invoices/{guid}/issue:
+    post:
+      operationId: issueVendorInvoice
+      x-permission: finance.vendor_invoice.issue
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: AP invoice ISSUED and GRNI/input-tax/AP journal POSTED atomically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                invoice_type: VENDOR
+                status: ISSUED
+                currency: IDR
+                net: '1000'
+                tax: '110'
+                gross: '1110'
+                lines:
+                - source_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  qty_base: '10'
+                  net: '1000'
+                  tax: '110'
+                  gross: '1110'
+                  match_status: MATCHED
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/customer-receipts:
+    post:
+      operationId: createCustomerReceipt
+      x-permission: finance.receipt.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+            example:
+              party_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              business_date: '2026-10-28'
+              currency: IDR
+              amount: '100'
+              bank_reference: BANK-PILOT-001
+              allocations:
+              - open_item_guid: 01990f5b-bbb9-7000-8000-000000000001
+                amount: '60'
+      responses:
+        '201':
+          description: Draft customer receipt; allocations are rechecked on post.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                amount: '100'
+                allocated_amount: '60'
+                unapplied_amount: '40'
+                currency: IDR
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/customer-receipts/{guid}/post:
+    post:
+      operationId: postCustomerReceipt
+      x-permission: finance.receipt.post
+      x-emits:
+      - finance.payment.posted.v1
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Receipt, allocation, open item and bank/AR journal committed once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                amount: '100'
+                allocated_amount: '60'
+                unapplied_amount: '40'
+                currency: IDR
+                version: 3
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/supplier-payments:
+    post:
+      operationId: createSupplierPayment
+      x-permission: finance.payment.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+            example:
+              party_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              business_date: '2026-10-28'
+              currency: IDR
+              amount: '100'
+              bank_reference: BANK-PILOT-001
+              allocations:
+              - open_item_guid: 01990f5b-bbb9-7000-8000-000000000001
+                amount: '60'
+      responses:
+        '201':
+          description: Draft supplier payment requiring approval.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                amount: '100'
+                allocated_amount: '60'
+                unapplied_amount: '40'
+                currency: IDR
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/supplier-payments/{guid}/post:
+    post:
+      operationId: postSupplierPayment
+      x-permission: finance.payment.post
+      x-emits:
+      - finance.payment.posted.v1
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Approved supplier payment and AP/bank journal posted once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                amount: '100'
+                allocated_amount: '60'
+                unapplied_amount: '40'
+                currency: IDR
+                version: 3
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/open-items:
+    get:
+      operationId: listOpenItems
+      x-permission: finance.open_item.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: party_guid
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: type
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - AR
+          - AP
+      - name: as_of
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped paginated open items as of requested date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenItemPage'
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  invoice_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  original_gross: '1'
+                  allocated: '1'
+                  credited: '1'
+                  outstanding: '40'
+                  due_date: '2026-10-28'
+                  source_type: INVOICE
+                  source_guid: 01990f5b-bbb9-7000-8000-000000000001
+                next_cursor: cursor-example
+                as_of: '2026-10-28'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finance/vendor-invoices/{guid}:
+    patch:
+      operationId: reviseVendorInvoiceDraft
+      x-owner: finance
+      x-permission: finance.vendor_invoice.create
+      summary: 'reviseVendorInvoiceDraft: DRAFT'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                vendor_reference:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                source_portion_guids:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    format: uuid
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - vendor_reference
+              - source_portion_guids
+              - reason
+            example:
+              vendor_reference: pilot-reference
+              source_portion_guids:
+              - 01990f5b-bbb9-7000-8000-000000000002
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: DRAFT state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: INVOICE_ALREADY_ISSUED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - INVOICE_ALREADY_ISSUED
+  /api/v1/finance/payments/{guid}/approve:
+    post:
+      operationId: approvePayment
+      x-owner: finance
+      x-permission: finance.payment.approve
+      summary: 'approvePayment: APPROVED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: APPROVED state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: APPROVAL_SOD_VIOLATION
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - APPROVAL_SOD_VIOLATION
+  /api/v1/finance/payments/{guid}/reverse:
+    post:
+      operationId: reversePayment
+      x-owner: finance
+      x-permission: finance.document.reverse
+      summary: Reverse the complete posted payment and every allocation; partial reversal is outside MVP.
+      description: Path guid and response guid identify the original payment; a separate reversal document is linked by the emitted event. Customer receipt reversal requires an ACTIVE Commercial Credit hold before Finance commits.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                evidence_guid:
+                  type: string
+                  format: uuid
+                business_date:
+                  type: string
+                  format: date
+              required:
+              - reason
+              - evidence_guid
+              - business_date
+            example:
+              reason: Approved for pilot
+              evidence_guid: 01990f5b-bbb9-7000-8000-000000000002
+              business_date: '2026-10-28'
+      responses:
+        '201':
+          description: REVERSED state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: REVERSED
+                version: 4
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"4"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PAYMENT_ALREADY_REVERSED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PAYMENT_ALREADY_REVERSED
+      - PERIOD_CLOSED
+      x-emits:
+      - finance.payment.reversed.v1
+  /api/v1/finance/payments/{guid}/unapplied-allocations:
+    post:
+      operationId: applyUnappliedCash
+      x-owner: finance
+      x-permission: finance.receipt.allocate
+      summary: Apply part of posted unapplied cash to one open item; payment remains POSTED.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                open_item_guid:
+                  type: string
+                  format: uuid
+                amount:
+                  type: string
+                  pattern: ^(?:[1-9]\d{0,13})(?:\.\d{1,6})?$
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - open_item_guid
+              - amount
+              - reason
+            example:
+              open_item_guid: 01990f5b-bbb9-7000-8000-000000000002
+              amount: '100.00'
+              reason: Approved for pilot
+      responses:
+        '201':
+          description: Allocation and reclassification journal committed; payment remains POSTED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                version: 4
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"4"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PAYMENT_UNAPPLIED_INSUFFICIENT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PAYMENT_UNAPPLIED_INSUFFICIENT
+      x-emits:
+      - finance.payment.allocation_applied.v1
+  /api/v1/finance/tax-documents/{guid}:
+    get:
+      operationId: getTaxDocument
+      x-owner: finance
+      x-permission: finance.tax_document.read
+      summary: Tax document status, export checksum and external acknowledgement evidence.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Tax document status, export checksum and external acknowledgement evidence.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxDocumentRead'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000002
+                invoice_guid: 01990f5b-bbb9-7000-8000-000000000002
+                status: EXPORTED
+                version: 1
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+  /api/v1/finance/tax-documents/{guid}/status:
+    post:
+      operationId: recordTaxDocumentStatus
+      x-owner: finance
+      x-permission: finance.tax_document.manage
+      summary: 'recordTaxDocumentStatus: STATUS_RECORDED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - DRAFT
+                  - READY_FOR_EXPORT
+                  - EXPORTED
+                  - ACKNOWLEDGED
+                  - REJECTED
+                evidence_guid:
+                  type: string
+                  format: uuid
+                external_ref:
+                  type:
+                  - string
+                  - 'null'
+                  maxLength: 500
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - status
+              - evidence_guid
+              - reason
+            example:
+              status: EXPORTED
+              evidence_guid: 01990f5b-bbb9-7000-8000-000000000002
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: STATUS_RECORDED state committed by Finance; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: STATUS_RECORDED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: TAX_STATUS_TRANSITION_INVALID
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - TAX_STATUS_TRANSITION_INVALID
+  /api/v1/finance/reports/aging:
+    get:
+      operationId: getAgingReport
+      x-owner: finance
+      x-permission: finance.report.read
+      summary: AR/AP aging buckets current, 1-30, 31-60, 61-90, >90 by due date.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: type
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - AR
+          - AP
+      - name: as_of
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: party_guid
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      responses:
+        '200':
+          description: AR/AP aging buckets current, 1-30, 31-60, 61-90, >90 by due date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/getAgingReportResult'
+              example:
+                as_of: '2026-10-28'
+                currency: IDR
+                watermark: '2026-10-28T10:00:00Z'
+                generated_at: '2026-10-28T10:00:00Z'
+                rows:
+                - party_account_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  current_base: '40'
+                  days_1_30_base: '60'
+                  days_31_60_base: '0'
+                  days_61_90_base: '0'
+                  days_over_90_base: '0'
+                  outstanding_base: '100'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+  /api/v1/finance/billing-source-portions/{guid}/correction-claims:
+    post:
+      operationId: claimBillingSourceForPodCorrection
+      x-owner: finance
+      x-permission: finance.billing_source.claim
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema: &id001
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Owner state is authoritative; retry same operation key is idempotent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionClaim'
+              example: &id002
+                claim_guid: 01990f5b-bbb9-7000-8000-000000000003
+                source_portion_guid: 01990f5b-bbb9-7000-8000-000000000002
+                status: HELD
+                version: 1
+                created_at: '2026-10-28T10:00:00Z'
+        default:
+          description: 401/403/404/409/422/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Source state changed
+                details: {}
+                request_id: req-01990f5b
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrectionClaimRequest'
+            example:
+              correction_guid: 01990f5b-bbb9-7000-8000-000000000003
+              expected_source_version: 1
+  /api/v1/finance/billing-source-portions/{guid}/correction-claims/{claim_guid}:
+    get:
+      operationId: getBillingSourceCorrectionClaim
+      x-owner: finance
+      x-permission: finance.billing_source.read
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema: *id001
+      - name: claim_guid
+        in: path
+        required: true
+        schema: *id001
+      responses:
+        '200':
+          description: Owner state is authoritative; retry same operation key is idempotent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionClaim'
+              example: *id002
+        default:
+          description: 401/403/404/409/422/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Source state changed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/finance/billing-source-portions/{guid}/correction-claims/{claim_guid}/abort:
+    post:
+      operationId: abortBillingSourceCorrectionClaim
+      x-owner: finance
+      x-permission: finance.billing_source.claim
+      description: Service-only. Finance verifies authoritative Operations status and correction operation GUID before abort; the request assertion is insufficient by itself.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema: *id001
+      - name: claim_guid
+        in: path
+        required: true
+        schema: *id001
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Owner state is authoritative; retry same operation key is idempotent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionClaim'
+              example:
+                claim_guid: 01990f5b-bbb9-7000-8000-000000000003
+                source_portion_guid: 01990f5b-bbb9-7000-8000-000000000002
+                status: ABORTED
+                version: 2
+                created_at: '2026-10-28T10:00:00Z'
+        default:
+          description: 401/403/404/409/422/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Source state changed
+                details: {}
+                request_id: req-01990f5b
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbortClaimRequest'
+            example:
+              reason: Operations commit did not occur
+              verified_no_correction: true
+  /api/v1/budgets:
+    post:
+      operationId: createBudget
+      x-owner: finance
+      x-stage: P3
+      x-permission: budget.create
+      x-error-codes: [BUDGET_INSUFFICIENT]
+      summary: createBudget — DRAFT; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - fiscal_year
+              - cost_center_guid
+              - account_guid
+              - authorized_base
+              - currency
+              properties:
+                fiscal_year:
+                  type: integer
+                  minimum: 0
+                cost_center_guid:
+                  type: string
+                  format: uuid
+                account_guid:
+                  type: string
+                  format: uuid
+                authorized_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                currency:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              fiscal_year: 2027
+              cost_center_guid: 01990f5b-bbb9-7000-8000-000000000001
+              account_guid: 01990f5b-bbb9-7000-8000-000000000002
+              authorized_base: '100.000000'
+              currency: IDR
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: finance
+      x-stage: P3
+      x-permission: budget.read
+      summary: Read scoped Budget state; owner is authoritative.
+      operationId: listBudgets
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - fiscal_year
+                          - cost_center_guid
+                          - account_guid
+                          - authorized_base
+                          - currency
+                          properties:
+                            fiscal_year:
+                              type: integer
+                              minimum: 0
+                            cost_center_guid:
+                              type: string
+                              format: uuid
+                            account_guid:
+                              type: string
+                              format: uuid
+                            authorized_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+                            currency:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    fiscal_year: 2027
+                    cost_center_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    account_guid: 01990f5b-bbb9-7000-8000-000000000002
+                    authorized_base: '100.000000'
+                    currency: IDR
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/budgets/{guid}/activate:
+    post:
+      operationId: activateBudget
+      x-owner: finance
+      x-stage: P3
+      x-permission: budget.approve
+      x-error-codes: [BUDGET_INSUFFICIENT]
+      summary: activateBudget — ACTIVE; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              reason: Controller approved budget
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: ACTIVE
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/budget-commitments:
+    post:
+      operationId: reserveBudget
+      x-owner: finance
+      x-stage: P3
+      x-permission: budget.reserve
+      x-error-codes: [BUDGET_INSUFFICIENT]
+      summary: reserveBudget — HELD; authoritative owner state and idempotent retry.
+      x-emits:
+      - budget.commitment.changed.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - budget_guid
+              - source_guid
+              - source_revision
+              - source_line_guid
+              - amount_base
+              properties:
+                budget_guid:
+                  type: string
+                  format: uuid
+                source_guid:
+                  type: string
+                  format: uuid
+                source_revision:
+                  type: integer
+                  minimum: 0
+                source_line_guid:
+                  type: string
+                  format: uuid
+                amount_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+            example:
+              budget_guid: 01990f5b-bbb9-7000-8000-000000000001
+              source_guid: 01990f5b-bbb9-7000-8000-000000000002
+              source_revision: 1
+              source_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+              amount_base: '40.000000'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: HELD
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/budget-commitments/{guid}/release:
+    post:
+      operationId: releaseBudget
+      x-owner: finance
+      x-stage: P3
+      x-permission: budget.release
+      x-error-codes: [BUDGET_INSUFFICIENT]
+      summary: releaseBudget — RELEASED; authoritative owner state and idempotent retry.
+      x-emits:
+      - budget.commitment.changed.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - amount_base
+              - reason
+              properties:
+                amount_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              amount_base: '20.000000'
+              reason: Unreceived PO balance cancelled
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: RELEASED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/expense-claims:
+    post:
+      operationId: createExpenseClaim
+      x-owner: finance
+      x-stage: P3
+      x-permission: expense.create
+      x-error-codes: [EXPENSE_RECEIPT_DUPLICATE]
+      summary: createExpenseClaim — DRAFT; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - employee_guid
+              - cost_center_guid
+              - category
+              - amount_base
+              - receipt_sha256
+              - business_date
+              properties:
+                employee_guid:
+                  type: string
+                  format: uuid
+                cost_center_guid:
+                  type: string
+                  format: uuid
+                category:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                amount_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                receipt_sha256:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                business_date:
+                  type: string
+                  format: date
+            example:
+              employee_guid: 01990f5b-bbb9-7000-8000-000000000001
+              cost_center_guid: 01990f5b-bbb9-7000-8000-000000000002
+              category: TRAVEL
+              amount_base: '100.000000'
+              receipt_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              business_date: '2026-11-01'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: finance
+      x-stage: P3
+      x-permission: expense.read
+      summary: Read scoped ExpenseClaim state; owner is authoritative.
+      operationId: listExpenseClaims
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - employee_guid
+                          - cost_center_guid
+                          - category
+                          - amount_base
+                          - receipt_sha256
+                          - business_date
+                          properties:
+                            employee_guid:
+                              type: string
+                              format: uuid
+                            cost_center_guid:
+                              type: string
+                              format: uuid
+                            category:
+                              type: string
+                              minLength: 1
+                              maxLength: 500
+                            amount_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+                            receipt_sha256:
+                              type: string
+                              pattern: ^[a-f0-9]{64}$
+                            business_date:
+                              type: string
+                              format: date
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    employee_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    cost_center_guid: 01990f5b-bbb9-7000-8000-000000000002
+                    category: TRAVEL
+                    amount_base: '100.000000'
+                    receipt_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    business_date: '2026-11-01'
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/expense-claims/{guid}/approve:
+    post:
+      operationId: approveExpenseClaim
+      x-owner: finance
+      x-stage: P3
+      x-permission: expense.approve
+      x-error-codes: [EXPENSE_RECEIPT_DUPLICATE]
+      summary: approveExpenseClaim — APPROVED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              reason: Evidence reviewed
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/expense-claims/{guid}/post:
+    post:
+      operationId: postExpenseClaim
+      x-owner: finance
+      x-stage: P3
+      x-permission: expense.post
+      x-error-codes: [EXPENSE_RECEIPT_DUPLICATE]
+      summary: postExpenseClaim — POSTED; authoritative owner state and idempotent retry.
+      x-emits:
+      - finance.expense.posted.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - business_date
+              - reason
+              properties:
+                business_date:
+                  type: string
+                  format: date
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              business_date: '2026-11-01'
+              reason: Approved expense
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/bank-statements:
+    post:
+      operationId: importBankStatement
+      x-owner: finance
+      x-stage: P3
+      x-permission: bank.statement.import
+      x-error-codes: [BANK_MATCH_CONFLICT]
+      summary: importBankStatement — IMPORTED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bank_account_guid
+              - period_start
+              - period_end
+              - file_sha256
+              - opening_base
+              - closing_base
+              properties:
+                bank_account_guid:
+                  type: string
+                  format: uuid
+                period_start:
+                  type: string
+                  format: date
+                period_end:
+                  type: string
+                  format: date
+                file_sha256:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                opening_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                closing_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+            example:
+              bank_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+              period_start: '2026-11-01'
+              period_end: '2026-11-30'
+              file_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              opening_base: '100.000000'
+              closing_base: '130.000000'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: IMPORTED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: finance
+      x-stage: P3
+      x-permission: bank.statement.read
+      summary: Read scoped BankStatement state; owner is authoritative.
+      operationId: listBankStatements
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - bank_account_guid
+                          - period_start
+                          - period_end
+                          - file_sha256
+                          - opening_base
+                          - closing_base
+                          properties:
+                            bank_account_guid:
+                              type: string
+                              format: uuid
+                            period_start:
+                              type: string
+                              format: date
+                            period_end:
+                              type: string
+                              format: date
+                            file_sha256:
+                              type: string
+                              pattern: ^[a-f0-9]{64}$
+                            opening_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+                            closing_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    bank_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    period_start: '2026-11-01'
+                    period_end: '2026-11-30'
+                    file_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    opening_base: '100.000000'
+                    closing_base: '130.000000'
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/bank-lines/{guid}/match:
+    post:
+      operationId: matchBankLine
+      x-owner: finance
+      x-stage: P3
+      x-permission: bank.match.create
+      x-error-codes: [BANK_MATCH_CONFLICT]
+      summary: matchBankLine — MATCHED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - payment_guid
+              - reason
+              properties:
+                payment_guid:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              payment_guid: 01990f5b-bbb9-7000-8000-000000000001
+              reason: Reference and amount match
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: MATCHED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/bank-statements/{guid}/close:
+    post:
+      operationId: closeBankReconciliation
+      x-owner: finance
+      x-stage: P3
+      x-permission: bank.reconciliation.close
+      x-error-codes: [BANK_MATCH_CONFLICT]
+      summary: closeBankReconciliation — CLOSED; authoritative owner state and idempotent retry.
+      x-emits:
+      - finance.bank_reconciliation.closed.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reconciliation_hash
+              - reason
+              properties:
+                reconciliation_hash:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              reconciliation_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              reason: Balances and timing items checked
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: CLOSED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/fx-rates:
+    post:
+      operationId: publishFxRate
+      x-owner: finance
+      x-stage: P3
+      x-permission: fx.rate.publish
+      x-error-codes: [FX_RATE_STALE]
+      summary: publishFxRate — PUBLISHED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - base_currency
+              - quote_currency
+              - source
+              - effective_date
+              - rate
+              properties:
+                base_currency:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                quote_currency:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                source:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                effective_date:
+                  type: string
+                  format: date
+                rate:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+            example:
+              base_currency: USD
+              quote_currency: IDR
+              source: BANK_INDONESIA
+              effective_date: '2026-11-01'
+              rate: '15200.000000'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PUBLISHED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/fx-revaluations:
+    post:
+      operationId: runFxRevaluation
+      x-owner: finance
+      x-stage: P3
+      x-permission: fx.revalue
+      x-error-codes: [FX_RATE_STALE]
+      summary: runFxRevaluation — POSTED; authoritative owner state and idempotent retry.
+      x-emits:
+      - finance.fx_revaluation.posted.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - period
+              - rate_snapshot_guid
+              - rule_version_guid
+              properties:
+                period:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                rate_snapshot_guid:
+                  type: string
+                  format: uuid
+                rule_version_guid:
+                  type: string
+                  format: uuid
+            example:
+              period: 2026-11
+              rate_snapshot_guid: 01990f5b-bbb9-7000-8000-000000000001
+              rule_version_guid: 01990f5b-bbb9-7000-8000-000000000002
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/budgets/{guid}:
+    get:
+      x-owner: finance
+      x-stage: P3
+      x-permission: budget.read
+      summary: Read scoped Budget state; owner is authoritative.
+      operationId: getBudget
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - fiscal_year
+                    - cost_center_guid
+                    - account_guid
+                    - authorized_base
+                    - currency
+                    properties:
+                      fiscal_year:
+                        type: integer
+                        minimum: 0
+                      cost_center_guid:
+                        type: string
+                        format: uuid
+                      account_guid:
+                        type: string
+                        format: uuid
+                      authorized_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                      currency:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  fiscal_year: 2027
+                  cost_center_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  account_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  authorized_base: '100.000000'
+                  currency: IDR
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/expense-claims/{guid}:
+    get:
+      x-owner: finance
+      x-stage: P3
+      x-permission: expense.read
+      summary: Read scoped ExpenseClaim state; owner is authoritative.
+      operationId: getExpenseClaim
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - employee_guid
+                    - cost_center_guid
+                    - category
+                    - amount_base
+                    - receipt_sha256
+                    - business_date
+                    properties:
+                      employee_guid:
+                        type: string
+                        format: uuid
+                      cost_center_guid:
+                        type: string
+                        format: uuid
+                      category:
+                        type: string
+                        minLength: 1
+                        maxLength: 500
+                      amount_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                      receipt_sha256:
+                        type: string
+                        pattern: ^[a-f0-9]{64}$
+                      business_date:
+                        type: string
+                        format: date
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  employee_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  cost_center_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  category: TRAVEL
+                  amount_base: '100.000000'
+                  receipt_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                  business_date: '2026-11-01'
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/bank-statements/{guid}:
+    get:
+      x-owner: finance
+      x-stage: P3
+      x-permission: bank.statement.read
+      summary: Read scoped BankStatement state; owner is authoritative.
+      operationId: getBankStatement
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - bank_account_guid
+                    - period_start
+                    - period_end
+                    - file_sha256
+                    - opening_base
+                    - closing_base
+                    properties:
+                      bank_account_guid:
+                        type: string
+                        format: uuid
+                      period_start:
+                        type: string
+                        format: date
+                      period_end:
+                        type: string
+                        format: date
+                      file_sha256:
+                        type: string
+                        pattern: ^[a-f0-9]{64}$
+                      opening_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                      closing_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  bank_account_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  period_start: '2026-11-01'
+                  period_end: '2026-11-30'
+                  file_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                  opening_base: '100.000000'
+                  closing_base: '130.000000'
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Entity:
+      name: X-Legal-Entity-Guid
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Guid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^"[1-9][0-9]*"$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable scoped business error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: FINANCE_SOURCE_ALREADY_INVOICED
+            message: Source already invoiced
+            details: {}
+            request_id: req-01990f5b
+  schemas:
+    Money:
+      type: string
+      pattern: ^\d{1,14}(\.\d{1,6})?$
+    Qty:
+      type: string
+      pattern: ^\d{1,14}(\.\d{1,6})?$
+    SalesInvoiceDraftRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - customer_account_guid
+      - business_date
+      - source_portion_guids
+      properties:
+        customer_account_guid:
+          type: string
+          format: uuid
+        business_date:
+          type: string
+          format: date
+        source_portion_guids:
+          type: array
+          minItems: 1
+          maxItems: 200
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    VendorInvoiceDraftRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - vendor_account_guid
+      - vendor_invoice_no
+      - tax_period
+      - business_date
+      - lines
+      properties:
+        vendor_account_guid:
+          type: string
+          format: uuid
+        vendor_invoice_no:
+          type: string
+          minLength: 1
+          maxLength: 100
+        tax_period:
+          type: string
+          pattern: ^[0-9]{4}-[0-9]{2}$
+        business_date:
+          type: string
+          format: date
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - purchase_order_line_guid
+            - goods_receipt_line_guid
+            - qty_base
+            - unit_net_price
+            properties:
+              purchase_order_line_guid:
+                type: string
+                format: uuid
+              goods_receipt_line_guid:
+                type: string
+                format: uuid
+              qty_base:
+                $ref: '#/components/schemas/Qty'
+              unit_net_price:
+                $ref: '#/components/schemas/Money'
+    Invoice:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - invoice_type
+      - status
+      - currency
+      - net
+      - tax
+      - gross
+      - lines
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        invoice_type:
+          type: string
+          enum:
+          - SALES
+          - VENDOR
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - MATCH_EXCEPTION
+          - READY
+          - ISSUED
+          - PARTIALLY_PAID
+          - PAID
+        document_no:
+          type:
+          - string
+          - 'null'
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        net:
+          $ref: '#/components/schemas/Money'
+        tax:
+          $ref: '#/components/schemas/Money'
+        gross:
+          $ref: '#/components/schemas/Money'
+        journal_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        lines:
+          type: array
+          items:
+            type: object
+            required:
+            - source_guid
+            - qty_base
+            - net
+            - tax
+            - gross
+            - match_status
+            properties:
+              source_guid:
+                type: string
+                format: uuid
+              qty_base:
+                $ref: '#/components/schemas/Qty'
+              net:
+                $ref: '#/components/schemas/Money'
+              tax:
+                $ref: '#/components/schemas/Money'
+              gross:
+                $ref: '#/components/schemas/Money'
+              match_status:
+                type: string
+                enum:
+                - MATCHED
+                - EXCEPTION
+                - NOT_APPLICABLE
+              error_code:
+                type:
+                - string
+                - 'null'
+        version:
+          type: integer
+          minimum: 1
+    PaymentRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - party_account_guid
+      - business_date
+      - currency
+      - amount
+      - bank_reference
+      - allocations
+      properties:
+        party_account_guid:
+          type: string
+          format: uuid
+        business_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        amount:
+          $ref: '#/components/schemas/Money'
+        bank_reference:
+          type: string
+          minLength: 1
+          maxLength: 128
+        allocations:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - open_item_guid
+            - amount
+            properties:
+              open_item_guid:
+                type: string
+                format: uuid
+              amount:
+                $ref: '#/components/schemas/Money'
+    Payment:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - amount
+      - allocated_amount
+      - unapplied_amount
+      - currency
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - APPROVED
+          - POSTED
+          - REVERSED
+        amount:
+          $ref: '#/components/schemas/Money'
+        allocated_amount:
+          $ref: '#/components/schemas/Money'
+        unapplied_amount:
+          $ref: '#/components/schemas/Money'
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        journal_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+    OpenItemPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - as_of
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - guid
+            - invoice_guid
+            - original_gross
+            - allocated
+            - credited
+            - outstanding
+            - due_date
+            - source_type
+            - source_guid
+            properties:
+              guid:
+                type: string
+                format: uuid
+              invoice_guid:
+                type:
+                - string
+                - 'null'
+                format: uuid
+              original_gross:
+                $ref: '#/components/schemas/Money'
+              allocated:
+                $ref: '#/components/schemas/Money'
+              credited:
+                $ref: '#/components/schemas/Money'
+              outstanding:
+                $ref: '#/components/schemas/Money'
+              due_date:
+                type: string
+                format: date
+              source_type:
+                type: string
+                enum:
+                - INVOICE
+                - OPENING_BALANCE
+              source_guid:
+                type: string
+                format: uuid
+        next_cursor:
+          type:
+          - string
+          - 'null'
+        as_of:
+          type: string
+          format: date
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string
+    getAgingReportResult:
+      type: object
+      additionalProperties: false
+      required:
+      - as_of
+      - currency
+      - watermark
+      - generated_at
+      - rows
+      properties:
+        as_of:
+          type: string
+          format: date
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+        watermark:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgingRow'
+    AgingRow:
+      type: object
+      additionalProperties: false
+      required:
+      - party_account_guid
+      - current_base
+      - days_1_30_base
+      - days_31_60_base
+      - days_61_90_base
+      - days_over_90_base
+      - outstanding_base
+      properties:
+        party_account_guid:
+          type: string
+          format: uuid
+        current_base: &id003
+          type: string
+          pattern: ^-?\d{1,14}(\.\d{1,6})?$
+        days_1_30_base: *id003
+        days_31_60_base: *id003
+        days_61_90_base: *id003
+        days_over_90_base: *id003
+        outstanding_base: *id003
+    CommandReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - version
+      - operation_guid
+      properties:
+        guid: &id004
+          type: string
+          format: uuid
+        status:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        operation_guid: *id004
+    TaxDocumentRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - invoice_guid
+      - status
+      - version
+      properties:
+        guid: &id005
+          type: string
+          format: uuid
+        invoice_guid: *id005
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - READY_FOR_EXPORT
+          - EXPORTED
+          - ACKNOWLEDGED
+          - REJECTED
+        external_ref: &id006
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        file_sha256: *id006
+        evidence_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        version:
+          type: integer
+          minimum: 0
+    CorrectionClaimRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - correction_guid
+      - expected_source_version
+      properties:
+        correction_guid: *id001
+        expected_source_version:
+          type: integer
+          minimum: 1
+    CorrectionClaim:
+      type: object
+      additionalProperties: false
+      required:
+      - claim_guid
+      - source_portion_guid
+      - status
+      - version
+      - created_at
+      properties:
+        claim_guid: *id001
+        source_portion_guid: *id001
+        status:
+          type: string
+          enum:
+          - HELD
+          - APPLIED
+          - ABORTED
+        version:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+    AbortClaimRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      - verified_no_correction
+      properties:
+        reason:
+          type: string
+          minLength: 3
+        verified_no_correction:
+          const: true

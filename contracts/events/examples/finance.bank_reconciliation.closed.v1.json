@@ -1,0 +1,21 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000012",
+  "type": "finance.bank_reconciliation.closed.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "aggregate_version": 1,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000112",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000425",
+  "causation_id": null,
+  "data": {
+    "statement_guid": "01990f5b-bbb9-7000-8000-000000000001",
+    "bank_account_guid": "01990f5b-bbb9-7000-8000-000000000002",
+    "closing_base": "130.000000",
+    "gl_balance_base": "130.000000",
+    "reconciliation_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

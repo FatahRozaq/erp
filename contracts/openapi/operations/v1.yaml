@@ -1,0 +1,2997 @@
+openapi: 3.1.1
+info:
+  title: ERP Inventory Control and WMS API
+  version: 1.0.0
+  description: MVP reservation, stock inquiry, adjustment, picking and delivery; goods receipt remains
+    in inventory/v1.yaml.
+servers:
+- url: https://erp.example.invalid
+security:
+- bearerAuth: []
+paths:
+  /api/v1/inventory/reservations:
+    post:
+      operationId: reserveStock
+      x-permission: inventory.reserve
+      description: Service-only command after Sales approval acknowledgement; shortage returns BACKORDERED,
+        never negative stock.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveRequest'
+            example:
+              sales_order_guid: 01990f5b-bbb9-7000-8000-000000000001
+              sales_order_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+              sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+              warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+              qty_base: '5'
+      responses:
+        '201':
+          description: Reservation or backorder result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                sales_order_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: HELD
+                requested_qty_base: '5'
+                held_qty_base: '5'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/inventory/reservations/{guid}/release:
+    post:
+      operationId: releaseReservation
+      x-permission: inventory.release
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+            example:
+              reason: example
+      responses:
+        '200':
+          description: Released once; duplicate command returns first result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                sales_order_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: RELEASED
+                requested_qty_base: '5'
+                held_qty_base: '5'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+  /api/v1/inventory/stock-balances:
+    get:
+      operationId: listStockBalances
+      x-permission: inventory.stock.view
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: warehouse_guid
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: sku_guid
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Primary-DB balance snapshot with available, reserved and physical quantities.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockBalance'
+              example:
+                warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: SELLABLE
+                physical_qty_base: '1'
+                reserved_qty_base: '1'
+                available_qty_base: '1'
+                as_of: '2026-10-28T10:00:00Z'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/inventory/adjustments:
+    post:
+      operationId: createStockAdjustment
+      x-permission: inventory.adjustment.create
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdjustment'
+            example:
+              warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+              sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+              book_qty_base: '10'
+              counted_qty_base: '9'
+              business_date: '2026-10-28'
+              reason: example
+              evidence_guid: 01990f5b-bbb9-7000-8000-000000000001
+      responses:
+        '201':
+          description: Draft adjustment requiring another approver.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Adjustment'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                delta_qty_base: '1'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/inventory/adjustments/{guid}/post:
+    post:
+      operationId: postStockAdjustment
+      x-permission: inventory.adjustment.approve
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+            example:
+              reason: example
+      responses:
+        '200':
+          description: Posted movement and balance update in one Operations transaction.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Adjustment'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                delta_qty_base: '1'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/warehouse/pick-tasks/{guid}/claim:
+    post:
+      operationId: claimPickTask
+      x-permission: warehouse.pick
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Claimed task with lease expiry; one picker wins.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickTask'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: IN_PROGRESS
+                allocated_qty_base: '1'
+                picked_qty_base: '1'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+  /api/v1/warehouse/pick-tasks/{guid}/scans:
+    post:
+      operationId: scanPickLine
+      x-permission: warehouse.pick
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickScan'
+            example:
+              pick_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+              sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+              qty_base: '1'
+              device_guid: 01990f5b-bbb9-7000-8000-000000000001
+      responses:
+        '200':
+          description: Updated picked quantity and task version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickTask'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: IN_PROGRESS
+                allocated_qty_base: '1'
+                picked_qty_base: '1'
+                version: 1
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/warehouse/deliveries/{guid}/dispatch:
+    post:
+      operationId: dispatchDelivery
+      x-permission: warehouse.dispatch
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchRequest'
+            example:
+              pick_task_guid: 01990f5b-bbb9-7000-8000-000000000001
+              business_date: '2026-10-28'
+              carrier_ref: PILOT-CARRIER-1
+              packs:
+              - pack_guid: 01990f5b-bbb9-7000-8000-000000000002
+                lines:
+                - source_portion_guid: 01990f5b-bbb9-7000-8000-000000000003
+                  quantity_base: '5'
+      responses:
+        '202':
+          description: Inventory movement requested; delivery is DISPATCHED only after owner acknowledgement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DISPATCHED
+                shipped_qty_base: '5'
+                accepted_qty_base: '3'
+                rejected_qty_base: '1'
+                in_transit_qty_base: '1'
+                version: 1
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000003
+                  shipped_qty_base: '5'
+                  accepted_qty_base: '3'
+                  rejected_qty_base: '1'
+                  in_transit_qty_base: '1'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/warehouse/deliveries/{guid}/pod:
+    post:
+      operationId: acceptDeliveryPOD
+      x-permission: warehouse.pod
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - $ref: '#/components/parameters/Guid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PodRequest'
+            example:
+              recipient_name: Pilot recipient
+              evidence_guid: 01990f5b-bbb9-7000-8000-000000000001
+              evidence_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              lines:
+              - delivery_line_guid: 01990f5b-bbb9-7000-8000-000000000001
+                accepted_qty_base: '3'
+                rejected_qty_base: '1'
+      responses:
+        '202':
+          description: Evidence accepted and Finance posting pending; no DELIVERED status until Finance
+            ack.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POD_ACCEPTED_PENDING_FINANCE
+                shipped_qty_base: '5'
+                accepted_qty_base: '3'
+                rejected_qty_base: '1'
+                in_transit_qty_base: '1'
+                version: 1
+                lines:
+                - guid: 01990f5b-bbb9-7000-8000-000000000003
+                  shipped_qty_base: '5'
+                  accepted_qty_base: '3'
+                  rejected_qty_base: '1'
+                  in_transit_qty_base: '1'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/inventory/reservations/{guid}/consume:
+    post:
+      operationId: consumeReservation
+      x-owner: operations
+      x-permission: inventory.reserve.consume
+      summary: 'consumeReservation: PARTIALLY_CONSUMED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                source_portion_guid: &id001
+                  type: string
+                  format: uuid
+                quantity_base:
+                  type: string
+                  pattern: ^-?\d{1,14}(\.\d{1,6})?$
+                pick_task_guid: *id001
+              required:
+              - source_portion_guid
+              - quantity_base
+              - pick_task_guid
+            example:
+              source_portion_guid: 01990f5b-bbb9-7000-8000-000000000002
+              quantity_base: '100.00'
+              pick_task_guid: 01990f5b-bbb9-7000-8000-000000000002
+      responses:
+        '200':
+          description: PARTIALLY_CONSUMED state committed by Operations; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PARTIALLY_CONSUMED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESERVATION_INSUFFICIENT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - RESERVATION_INSUFFICIENT
+      - RESERVATION_EXPIRED
+  /api/v1/inventory/reservations/{guid}/expire:
+    post:
+      operationId: expireReservation
+      x-owner: operations
+      x-permission: inventory.reserve.expire
+      summary: 'expireReservation: EXPIRED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - reason
+            example:
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: EXPIRED state committed by Operations; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: EXPIRED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESERVATION_ALREADY_CONSUMED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - RESERVATION_ALREADY_CONSUMED
+  /api/v1/inventory/lots/{guid}:
+    get:
+      operationId: getInventoryLot
+      x-owner: operations
+      x-permission: inventory.stock.view
+      summary: Lot status, expiry, SKU, warehouse and remaining quantity; scoped.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Lot status, expiry, SKU, warehouse and remaining quantity; scoped.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotRead'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000002
+                sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+                warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                lot_no: pilot-reference
+                status: pilot-reference
+                sellable_base: '100.00'
+                held_base: '100.00'
+                version: 1
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+  /api/v1/inventory/serials/{guid}:
+    get:
+      operationId: getInventorySerial
+      x-owner: operations
+      x-permission: inventory.stock.view
+      summary: Current serial state and source movement reference; scoped.
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current serial state and source movement reference; scoped.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SerialRead'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000002
+                sku_guid: 01990f5b-bbb9-7000-8000-000000000002
+                serial_no: pilot-reference
+                status: pilot-reference
+                last_movement_guid: 01990f5b-bbb9-7000-8000-000000000002
+                version: 1
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: RESOURCE_NOT_FOUND
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes: []
+  /api/v1/inventory/adjustments/{guid}/reverse:
+    post:
+      operationId: reverseStockAdjustment
+      x-owner: operations
+      x-permission: inventory.adjustment.reverse
+      summary: 'reverseStockAdjustment: REVERSED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                evidence_guid:
+                  type: string
+                  format: uuid
+              required:
+              - reason
+              - evidence_guid
+            example:
+              reason: Approved for pilot
+              evidence_guid: 01990f5b-bbb9-7000-8000-000000000002
+      responses:
+        '200':
+          description: REVERSED state committed by Operations; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: REVERSED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: ADJUSTMENT_DOWNSTREAM_CONSUMED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - ADJUSTMENT_DOWNSTREAM_CONSUMED
+      - INVENTORY_PERIOD_CLOSED
+  /api/v1/warehouse/pick-tasks/{guid}/complete:
+    post:
+      operationId: completePickTask
+      x-owner: operations
+      x-permission: warehouse.pick
+      summary: 'completePickTask: PICKED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                lines:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - source_portion_guid
+                    - quantity_base
+                    properties:
+                      source_portion_guid:
+                        type: string
+                        format: uuid
+                      quantity_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - lines
+              - reason
+            example:
+              lines:
+              - source_portion_guid: 01990f5b-bbb9-7000-8000-000000000002
+                quantity_base: '2'
+              reason: Approved for pilot
+      responses:
+        '200':
+          description: PICKED state committed by Operations; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PICKED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PICK_QTY_EXCEEDS_ALLOCATED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PICK_QTY_EXCEEDS_ALLOCATED
+  /api/v1/warehouse/pick-tasks/{guid}/packs:
+    post:
+      operationId: completePack
+      x-owner: operations
+      x-permission: warehouse.pack
+      summary: 'completePack: PACKED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                lines:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - source_portion_guid
+                    - quantity_base
+                    properties:
+                      source_portion_guid:
+                        type: string
+                        format: uuid
+                      quantity_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+                seal_ref:
+                  type:
+                  - string
+                  - 'null'
+                  maxLength: 500
+              required:
+              - lines
+            example:
+              lines:
+              - source_portion_guid: 01990f5b-bbb9-7000-8000-000000000002
+                quantity_base: '2'
+      responses:
+        '201':
+          description: PACKED state committed by Operations; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PACKED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: PACK_QTY_EXCEEDS_PICKED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - PACK_QTY_EXCEEDS_PICKED
+      - SERIAL_ALREADY_PACKED
+  /api/v1/warehouse/deliveries/{guid}/pod-corrections:
+    post:
+      operationId: correctDeliveryPod
+      x-owner: operations
+      x-permission: warehouse.pod.correct
+      summary: 'correctDeliveryPod: CORRECTED'
+      parameters:
+      - $ref: '#/components/parameters/Entity'
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                source_portion_guid: &id003
+                  type: string
+                  format: uuid
+                accepted_delta_base: &id002
+                  type: string
+                  pattern: ^-?\d{1,14}(\.\d{1,6})?$
+                rejected_delta_base: *id002
+                evidence_guid: *id003
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+              - source_portion_guid
+              - accepted_delta_base
+              - rejected_delta_base
+              - evidence_guid
+              - reason
+            example:
+              source_portion_guid: 01990f5b-bbb9-7000-8000-000000000002
+              accepted_delta_base: '100.00'
+              rejected_delta_base: '100.00'
+              evidence_guid: 01990f5b-bbb9-7000-8000-000000000002
+              reason: Approved for pilot
+      responses:
+        '201':
+          description: CORRECTED state committed by Operations; fetch aggregate for full detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommandReceipt'
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: CORRECTED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"2"'
+        default:
+          description: Error status is 400/401/403/404/409/412/422/429/503 as applicable; code is stable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: POD_ALREADY_INVOICED
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+      x-error-codes:
+      - POD_ALREADY_INVOICED
+      - POD_QUANTITY_INVALID
+      x-emits:
+      - warehouse.delivery.pod_corrected.v1
+  /api/v1/transfers:
+    post:
+      operationId: createTransfer
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.transfer.create
+      x-error-codes: [TRANSFER_ENTITY_MISMATCH]
+      summary: createTransfer — DRAFT; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - from_warehouse_guid
+              - to_warehouse_guid
+              - lines
+              properties:
+                from_warehouse_guid:
+                  type: string
+                  format: uuid
+                to_warehouse_guid:
+                  type: string
+                  format: uuid
+                lines:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - sku_guid
+                    - qty_base
+                    properties:
+                      sku_guid:
+                        type: string
+                        format: uuid
+                      qty_base:
+                        type: string
+                        pattern: ^\d{1,14}(\.\d{1,6})?$
+            example:
+              from_warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+              to_warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+              lines:
+              - sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                qty_base: '10.000000'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.transfer.read
+      summary: Read scoped Transfer state; owner is authoritative.
+      operationId: listTransfers
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - from_warehouse_guid
+                          - to_warehouse_guid
+                          - lines
+                          properties:
+                            from_warehouse_guid:
+                              type: string
+                              format: uuid
+                            to_warehouse_guid:
+                              type: string
+                              format: uuid
+                            lines:
+                              type: array
+                              minItems: 1
+                              maxItems: 200
+                              items:
+                                type: object
+                                additionalProperties: false
+                                required:
+                                - sku_guid
+                                - qty_base
+                                properties:
+                                  sku_guid:
+                                    type: string
+                                    format: uuid
+                                  qty_base:
+                                    type: string
+                                    pattern: ^\d{1,14}(\.\d{1,6})?$
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    from_warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    to_warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                    lines:
+                    - sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                      qty_base: '10.000000'
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/transfers/{guid}/approve:
+    post:
+      operationId: approveTransfer
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.transfer.approve
+      x-error-codes: [TRANSFER_ENTITY_MISMATCH]
+      summary: approveTransfer — APPROVED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              reason: Approved intra entity transfer
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: APPROVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/transfers/{guid}/ship:
+    post:
+      operationId: shipTransfer
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.transfer.ship
+      x-error-codes: [TRANSFER_RECEIVE_EXCEEDS_SHIPPED]
+      summary: shipTransfer — IN_TRANSIT; authoritative owner state and idempotent retry.
+      x-emits:
+      - inventory.transfer.shipped.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - line_guid
+              - qty_base
+              - lot_guid
+              properties:
+                line_guid:
+                  type: string
+                  format: uuid
+                qty_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                lot_guid:
+                  type: string
+                  format: uuid
+            example:
+              line_guid: 01990f5b-bbb9-7000-8000-000000000001
+              qty_base: '10.000000'
+              lot_guid: 01990f5b-bbb9-7000-8000-000000000002
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: IN_TRANSIT
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/transfers/{guid}/receive:
+    post:
+      operationId: receiveTransfer
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.transfer.receive
+      x-error-codes: [TRANSFER_RECEIVE_EXCEEDS_SHIPPED]
+      summary: receiveTransfer — PARTIALLY_RECEIVED; authoritative owner state and idempotent retry.
+      x-emits:
+      - inventory.transfer.received.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - shipment_portion_guid
+              - sellable_qty_base
+              - hold_qty_base
+              - discrepancy_qty_base
+              properties:
+                shipment_portion_guid:
+                  type: string
+                  format: uuid
+                sellable_qty_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                hold_qty_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+                discrepancy_qty_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+            example:
+              shipment_portion_guid: 01990f5b-bbb9-7000-8000-000000000001
+              sellable_qty_base: '7.000000'
+              hold_qty_base: '2.000000'
+              discrepancy_qty_base: '1.000000'
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: PARTIALLY_RECEIVED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/transfers/{guid}/resolve-discrepancy:
+    post:
+      operationId: resolveTransferDiscrepancy
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.transfer.resolve
+      x-error-codes: [TRANSFER_CLAIM_UNRESOLVED]
+      summary: resolveTransferDiscrepancy — CLOSED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - shipment_portion_guid
+              - evidence_guid
+              - resolution
+              - qty_base
+              properties:
+                shipment_portion_guid:
+                  type: string
+                  format: uuid
+                evidence_guid:
+                  type: string
+                  format: uuid
+                resolution:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                qty_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+            example:
+              shipment_portion_guid: 01990f5b-bbb9-7000-8000-000000000001
+              evidence_guid: 01990f5b-bbb9-7000-8000-000000000002
+              resolution: APPROVED_LOSS
+              qty_base: '1.000000'
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: CLOSED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/bins/relocations:
+    post:
+      operationId: relocateBin
+      x-owner: operations
+      x-stage: P2
+      x-permission: warehouse.bin.relocate
+      x-error-codes: [BIN_CAPACITY_EXCEEDED]
+      summary: relocateBin — POSTED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - from_bin_guid
+              - to_bin_guid
+              - sku_guid
+              - qty_base
+              properties:
+                from_bin_guid:
+                  type: string
+                  format: uuid
+                to_bin_guid:
+                  type: string
+                  format: uuid
+                sku_guid:
+                  type: string
+                  format: uuid
+                qty_base:
+                  type: string
+                  pattern: ^\d{1,14}(\.\d{1,6})?$
+            example:
+              from_bin_guid: 01990f5b-bbb9-7000-8000-000000000001
+              to_bin_guid: 01990f5b-bbb9-7000-8000-000000000002
+              sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+              qty_base: '3.000000'
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/waves:
+    post:
+      operationId: createWave
+      x-owner: operations
+      x-stage: P2
+      x-permission: warehouse.wave.create
+      x-error-codes: [PICK_TASK_ALREADY_WAVED]
+      summary: createWave — DRAFT; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - warehouse_guid
+              - pick_task_guids
+              properties:
+                warehouse_guid:
+                  type: string
+                  format: uuid
+                pick_task_guids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: string
+                    format: uuid
+            example:
+              warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+              pick_task_guids:
+              - 01990f5b-bbb9-7000-8000-000000000002
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: operations
+      x-stage: P2
+      x-permission: warehouse.wave.read
+      summary: Read scoped Wave state; owner is authoritative.
+      operationId: listWaves
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - warehouse_guid
+                          - pick_task_guids
+                          properties:
+                            warehouse_guid:
+                              type: string
+                              format: uuid
+                            pick_task_guids:
+                              type: array
+                              minItems: 1
+                              maxItems: 200
+                              items:
+                                type: string
+                                format: uuid
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    pick_task_guids:
+                    - 01990f5b-bbb9-7000-8000-000000000002
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/waves/{guid}/release:
+    post:
+      operationId: releaseWave
+      x-owner: operations
+      x-stage: P2
+      x-permission: warehouse.wave.release
+      x-error-codes: [PICK_TASK_ALREADY_WAVED]
+      summary: releaseWave — RELEASED; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+            example:
+              reason: Tasks allocated and ready
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: RELEASED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/stock-counts:
+    post:
+      operationId: createStockCount
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.count.create
+      x-error-codes: [COUNT_SECOND_PASS_REQUIRED]
+      summary: createStockCount — OPEN; authoritative owner state and idempotent retry.
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - warehouse_guid
+              - scope_hash
+              - freeze_watermark
+              properties:
+                warehouse_guid:
+                  type: string
+                  format: uuid
+                scope_hash:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                freeze_watermark:
+                  type: integer
+                  minimum: 0
+            example:
+              warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+              scope_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+              freeze_watermark: 100
+      responses:
+        '201':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: OPEN
+                version: 1
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+    get:
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.count.read
+      summary: Read scoped StockCount state; owner is authoritative.
+      operationId: listStockCounts
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 25
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Scoped cursor page.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - items
+                - next_cursor
+                - as_of
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - guid
+                      - status
+                      - version
+                      - data
+                      properties:
+                        guid:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        version:
+                          type: integer
+                          minimum: 1
+                        data:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - warehouse_guid
+                          - scope_hash
+                          - freeze_watermark
+                          properties:
+                            warehouse_guid:
+                              type: string
+                              format: uuid
+                            scope_hash:
+                              type: string
+                              pattern: ^[a-f0-9]{64}$
+                            freeze_watermark:
+                              type: integer
+                              minimum: 0
+                  next_cursor:
+                    type:
+                    - string
+                    - 'null'
+                  as_of:
+                    type: string
+                    format: date-time
+              example:
+                items:
+                - guid: 01990f5b-bbb9-7000-8000-000000000001
+                  status: DRAFT
+                  version: 1
+                  data:
+                    warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    scope_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                    freeze_watermark: 100
+                next_cursor: null
+                as_of: '2026-11-01T10:00:00Z'
+        default:
+          description: Scoped 401/403/409/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/stock-counts/{guid}/post:
+    post:
+      operationId: postStockCount
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.count.post
+      x-error-codes: [COUNT_SECOND_PASS_REQUIRED]
+      summary: postStockCount — POSTED; authoritative owner state and idempotent retry.
+      x-emits:
+      - inventory.count.posted.v1
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - business_date
+              - reason
+              - evidence_guid
+              properties:
+                business_date:
+                  type: string
+                  format: date
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                evidence_guid:
+                  type: string
+                  format: uuid
+            example:
+              business_date: '2026-11-01'
+              reason: Reviewed second count
+              evidence_guid: 01990f5b-bbb9-7000-8000-000000000002
+      responses:
+        '200':
+          description: Owner committed this state or persisted an explicit pending operation; inspect the resource
+            before assuming downstream completion.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - operation_guid
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  operation_guid:
+                    type: string
+                    format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: POSTED
+                version: 2
+                operation_guid: 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Stable ERP error; 400/401/403/404/409/412/422/429/503 as applicable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/transfers/{guid}:
+    get:
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.transfer.read
+      summary: Read scoped Transfer state; owner is authoritative.
+      operationId: getTransfer
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - from_warehouse_guid
+                    - to_warehouse_guid
+                    - lines
+                    properties:
+                      from_warehouse_guid:
+                        type: string
+                        format: uuid
+                      to_warehouse_guid:
+                        type: string
+                        format: uuid
+                      lines:
+                        type: array
+                        minItems: 1
+                        maxItems: 200
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required:
+                          - sku_guid
+                          - qty_base
+                          properties:
+                            sku_guid:
+                              type: string
+                              format: uuid
+                            qty_base:
+                              type: string
+                              pattern: ^\d{1,14}(\.\d{1,6})?$
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  from_warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  to_warehouse_guid: 01990f5b-bbb9-7000-8000-000000000002
+                  lines:
+                  - sku_guid: 01990f5b-bbb9-7000-8000-000000000001
+                    qty_base: '10.000000'
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/waves/{guid}:
+    get:
+      x-owner: operations
+      x-stage: P2
+      x-permission: warehouse.wave.read
+      summary: Read scoped Wave state; owner is authoritative.
+      operationId: getWave
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - warehouse_guid
+                    - pick_task_guids
+                    properties:
+                      warehouse_guid:
+                        type: string
+                        format: uuid
+                      pick_task_guids:
+                        type: array
+                        minItems: 1
+                        maxItems: 200
+                        items:
+                          type: string
+                          format: uuid
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  pick_task_guids:
+                  - 01990f5b-bbb9-7000-8000-000000000002
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+  /api/v1/stock-counts/{guid}:
+    get:
+      x-owner: operations
+      x-stage: P2
+      x-permission: inventory.count.read
+      summary: Read scoped StockCount state; owner is authoritative.
+      operationId: getStockCount
+      parameters:
+      - name: X-Legal-Entity-Guid
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: guid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Current owner aggregate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - guid
+                - status
+                - version
+                - data
+                properties:
+                  guid:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - warehouse_guid
+                    - scope_hash
+                    - freeze_watermark
+                    properties:
+                      warehouse_guid:
+                        type: string
+                        format: uuid
+                      scope_hash:
+                        type: string
+                        pattern: ^[a-f0-9]{64}$
+                      freeze_watermark:
+                        type: integer
+                        minimum: 0
+              example:
+                guid: 01990f5b-bbb9-7000-8000-000000000001
+                status: DRAFT
+                version: 1
+                data:
+                  warehouse_guid: 01990f5b-bbb9-7000-8000-000000000001
+                  scope_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                  freeze_watermark: 100
+        default:
+          description: Scoped 401/403/404/503 error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                success: false
+                code: SOURCE_STATE_CONFLICT
+                message: Request cannot be completed
+                details: {}
+                request_id: req-01990f5b
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Entity:
+      name: X-Legal-Entity-Guid
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Guid:
+      name: guid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: ^"[1-9][0-9]*"$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+  responses:
+    Problem:
+      description: Stable scoped error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            success: false
+            code: INVENTORY_INSUFFICIENT_AVAILABLE
+            message: Not enough stock
+            details: {}
+            request_id: req-01990f5b
+  schemas:
+    Qty:
+      type: string
+      pattern: ^\d{1,14}(\.\d{1,6})?$
+    ReserveRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - sales_order_guid
+      - sales_order_line_guid
+      - sku_guid
+      - warehouse_guid
+      - qty_base
+      properties:
+        sales_order_guid:
+          type: string
+          format: uuid
+        sales_order_line_guid:
+          type: string
+          format: uuid
+        sku_guid:
+          type: string
+          format: uuid
+        warehouse_guid:
+          type: string
+          format: uuid
+        qty_base:
+          $ref: '#/components/schemas/Qty'
+    Reservation:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - sales_order_line_guid
+      - status
+      - requested_qty_base
+      - held_qty_base
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        sales_order_line_guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - HELD
+          - ALLOCATED
+          - BACKORDERED
+          - CONSUMED
+          - RELEASED
+          - EXPIRED
+        requested_qty_base:
+          $ref: '#/components/schemas/Qty'
+        held_qty_base:
+          $ref: '#/components/schemas/Qty'
+        version:
+          type: integer
+          minimum: 1
+    Reason:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+    StockBalance:
+      type: object
+      additionalProperties: false
+      required:
+      - warehouse_guid
+      - sku_guid
+      - status
+      - physical_qty_base
+      - reserved_qty_base
+      - available_qty_base
+      - as_of
+      properties:
+        warehouse_guid:
+          type: string
+          format: uuid
+        sku_guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - SELLABLE
+          - HOLD
+          - DAMAGED
+          - IN_TRANSIT
+        physical_qty_base:
+          $ref: '#/components/schemas/Qty'
+        reserved_qty_base:
+          $ref: '#/components/schemas/Qty'
+        available_qty_base:
+          $ref: '#/components/schemas/Qty'
+        as_of:
+          type: string
+          format: date-time
+    CreateAdjustment:
+      type: object
+      additionalProperties: false
+      required:
+      - warehouse_guid
+      - sku_guid
+      - book_qty_base
+      - counted_qty_base
+      - business_date
+      - reason
+      - evidence_guid
+      properties:
+        warehouse_guid:
+          type: string
+          format: uuid
+        sku_guid:
+          type: string
+          format: uuid
+        lot_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        book_qty_base:
+          $ref: '#/components/schemas/Qty'
+        counted_qty_base:
+          $ref: '#/components/schemas/Qty'
+        business_date:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 500
+        evidence_guid:
+          type: string
+          format: uuid
+    Adjustment:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - delta_qty_base
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - APPROVED
+          - POSTED
+          - REJECTED
+        delta_qty_base:
+          type: string
+          pattern: ^-?\d{1,14}(\.\d{1,6})?$
+        version:
+          type: integer
+          minimum: 1
+    PickTask:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - allocated_qty_base
+      - picked_qty_base
+      - version
+      properties:
+        guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - OPEN
+          - IN_PROGRESS
+          - PICKED
+          - PACKED
+          - DISPATCHED
+          - EXCEPTION
+        allocated_qty_base:
+          $ref: '#/components/schemas/Qty'
+        picked_qty_base:
+          $ref: '#/components/schemas/Qty'
+        lease_expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+    PickScan:
+      type: object
+      additionalProperties: false
+      required:
+      - pick_line_guid
+      - sku_guid
+      - qty_base
+      - device_guid
+      properties:
+        pick_line_guid:
+          type: string
+          format: uuid
+        sku_guid:
+          type: string
+          format: uuid
+        lot_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        serial_no:
+          type:
+          - string
+          - 'null'
+        qty_base:
+          $ref: '#/components/schemas/Qty'
+        device_guid:
+          type: string
+          format: uuid
+    DispatchRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - pick_task_guid
+      - business_date
+      - carrier_ref
+      - packs
+      properties:
+        pick_task_guid:
+          type: string
+          format: uuid
+        business_date:
+          type: string
+          format: date
+        carrier_ref:
+          type: string
+          minLength: 1
+          maxLength: 128
+        packs:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - pack_guid
+            - lines
+            properties:
+              pack_guid: &id004
+                type: string
+                format: uuid
+              lines:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                  - source_portion_guid
+                  - quantity_base
+                  properties:
+                    source_portion_guid: *id004
+                    quantity_base: &id011
+                      $ref: '#/components/schemas/Qty'
+    PodRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - recipient_name
+      - evidence_guid
+      - evidence_sha256
+      - lines
+      properties:
+        recipient_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        evidence_guid:
+          type: string
+          format: uuid
+        evidence_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - delivery_line_guid
+            - accepted_qty_base
+            - rejected_qty_base
+            properties:
+              delivery_line_guid:
+                type: string
+                format: uuid
+              accepted_qty_base:
+                $ref: '#/components/schemas/Qty'
+              rejected_qty_base:
+                $ref: '#/components/schemas/Qty'
+    Delivery:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - shipped_qty_base
+      - accepted_qty_base
+      - rejected_qty_base
+      - in_transit_qty_base
+      - version
+      - lines
+      properties:
+        guid:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - OPEN
+          - DISPATCH_PENDING
+          - DISPATCHED
+          - POD_REVIEW_REQUIRED
+          - POD_ACCEPTED_PENDING_FINANCE
+          - DELIVERED
+          - EXCEPTION
+        shipped_qty_base:
+          $ref: '#/components/schemas/Qty'
+        accepted_qty_base:
+          $ref: '#/components/schemas/Qty'
+        rejected_qty_base:
+          $ref: '#/components/schemas/Qty'
+        in_transit_qty_base:
+          $ref: '#/components/schemas/Qty'
+        version:
+          type: integer
+          minimum: 1
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryLine'
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - success
+      - code
+      - message
+      - details
+      - request_id
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string
+    CommandReceipt:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - status
+      - version
+      - operation_guid
+      properties:
+        guid: &id005
+          type: string
+          format: uuid
+        status:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        operation_guid: *id005
+    LotRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - sku_guid
+      - warehouse_guid
+      - lot_no
+      - status
+      - sellable_base
+      - held_base
+      - version
+      properties:
+        guid: &id006
+          type: string
+          format: uuid
+        sku_guid: *id006
+        warehouse_guid: *id006
+        lot_no: &id007
+          type: string
+          minLength: 1
+          maxLength: 500
+        expiry:
+          type:
+          - string
+          - 'null'
+          format: date
+        status: *id007
+        sellable_base: &id008
+          type: string
+          pattern: ^-?\d{1,14}(\.\d{1,6})?$
+        held_base: *id008
+        version:
+          type: integer
+          minimum: 0
+    SerialRead:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - sku_guid
+      - serial_no
+      - status
+      - last_movement_guid
+      - version
+      properties:
+        guid: &id009
+          type: string
+          format: uuid
+        sku_guid: *id009
+        lot_guid:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        serial_no: &id010
+          type: string
+          minLength: 1
+          maxLength: 500
+        status: *id010
+        last_movement_guid: *id009
+        version:
+          type: integer
+          minimum: 0
+    DeliveryLine:
+      type: object
+      additionalProperties: false
+      required:
+      - guid
+      - shipped_qty_base
+      - accepted_qty_base
+      - rejected_qty_base
+      - in_transit_qty_base
+      properties:
+        guid: *id004
+        shipped_qty_base: *id011
+        accepted_qty_base: *id011
+        rejected_qty_base: *id011
+        in_transit_qty_base: *id011

@@ -1,0 +1,58 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r scripts/requirements-contracts.txt
+      - run: python scripts/validate_contracts.py
+      - run: python scripts/validate_backlog.py
+      - run: python scripts/check_migration_inventory.py
+  go:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [gateway, platform, commercial, operations, finance]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/golang/services/${{ matrix.service }}/go.mod
+          cache-dependency-path: backend/golang/services/${{ matrix.service }}/go.sum
+      - working-directory: backend/golang/services/${{ matrix.service }}
+        run: test -z "$(gofmt -l cmd internal)" && go vet ./... && go test ./... && go build -o /tmp/erp-api ./cmd/api
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: frontend/nextjs/package-lock.json
+      - working-directory: frontend/nextjs
+        run: npm ci
+      - working-directory: frontend/nextjs
+        run: npm run format:check && npm run lint && npm run typecheck && npm run contracts:check && npm test && npm run build
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - working-directory: mobile/flutter
+        run: flutter pub get --enforce-lockfile
+      - working-directory: mobile/flutter
+        run: dart format --output=none --set-exit-if-changed lib test && flutter analyze && flutter test && flutter build web

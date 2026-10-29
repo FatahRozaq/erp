@@ -1,0 +1,30 @@
+{
+  "event_id": "01990f5b-bbb9-7000-8000-000000000003",
+  "type": "finance.payment.reversed.v1",
+  "schema_version": 1,
+  "aggregate_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "aggregate_version": 4,
+  "tenant_guid": "01990f5b-bbb9-7000-8000-000000000001",
+  "legal_entity_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "business_operation_guid": "01990f5b-bbb9-7000-8000-000000000002",
+  "occurred_at": "2026-10-28T10:00:00Z",
+  "recorded_at": "2026-10-28T10:00:01Z",
+  "correlation_id": "01990f5b-bbb9-7000-8000-000000000425",
+  "causation_id": null,
+  "data": {
+    "reversal_guid": "01990f5b-bbb9-7000-8000-000000000003",
+    "original_payment_guid": "01990f5b-bbb9-7000-8000-000000000001",
+    "party_account_guid": "01990f5b-bbb9-7000-8000-000000000002",
+    "payment_type": "CUSTOMER_RECEIPT",
+    "business_date": "2026-10-28",
+    "gross_base": "60",
+    "unapplied_reversed_base": "0",
+    "journal_guid": "01990f5b-bbb9-7000-8000-000000000001",
+    "reopened_allocations": [
+      {
+        "open_item_guid": "01990f5b-bbb9-7000-8000-000000000002",
+        "amount_base": "60"
+      }
+    ]
+  }
+}
