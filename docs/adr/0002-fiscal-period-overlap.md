@@ -12,4 +12,4 @@ Mutation tanggal/soft delete period wajib transaksi `SERIALIZABLE`. Trigger mela
 
 ## Konsekuensi dan bukti
 
-Tidak perlu extension tambahan, tetapi create/edit period harus memakai isolation tepat dan menangani serialization retry. Migration [Finance](../../backend/golang/services/finance/migrations/accounting/000001_grni_posting.up.sql) berhasil pada PostgreSQL 18; overlap berurutan ditolak, dan dua insert overlap paralel menghasilkan tepat satu commit.
+Tidak perlu extension tambahan, tetapi create/edit period harus memakai isolation tepat dan menangani serialization retry. Migration [Finance](../../backend/database/migrations/accounting/000001_grni_posting.up.sql) berhasil pada PostgreSQL 18; overlap berurutan ditolak, dan dua insert overlap paralel menghasilkan tepat satu commit.

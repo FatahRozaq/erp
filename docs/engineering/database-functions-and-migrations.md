@@ -5,18 +5,22 @@
 ## 1. Sumber, folder, dan alur versi
 
 ```text
-backend/golang/services/<owner>/
-├── migrations/<module>/
+backend/database/
+├── migrations/<schema>/
 │   ├── 000001_create_tables.up.sql
 │   ├── 000002_apply_movement_v1.up.sql       # CREATE FUNCTION, REVOKE/GRANT, komentar
 │   ├── 000002_apply_movement_v1.down.sql     # hanya bila aman dan benar-benar reversible
 │   └── 000003_apply_movement_v2.up.sql       # breaking signature/semantik, v1 tetap hidup
-└── internal/<module>/adapters/postgres/
-    ├── movement_repository.go                # panggil function dengan parameter typed
-    └── movement_repository_test.go            # PostgreSQL integration/concurrency
+├── queries/<schema>/                          # query bernama untuk sqlc
+└── sqlc.yaml                                  # output ke adapter Go owner
+
+backend/golang/services/<owner>/internal/<module>/adapters/postgres/
+├── sqlc/                                      # generated; tidak diedit manual
+├── movement_repository.go                    # panggil function dengan parameter typed
+└── movement_repository_test.go               # PostgreSQL integration/concurrency
 ```
 
-File yang sudah diaplikasikan **immutable**. Function definition dan grant yang dideploy berada dalam migration baru, bukan SQL manual di server produksi, init script terpisah, atau string DDL di Go. `schema_migrations`/runner dan lock migrasi dipakai per owner; hasil apply, checksum, durasi, dan versi dicatat. Up/down berpasangan hanya jika down tidak menghapus fakta atau merusak binary yang masih berjalan; selain itu tulis forward-fix, restore checkpoint dan rencana pemulihan. [Standar database §8](database-standards.md#8-migrations-hak-akses-dan-operasi) menjelaskan expand/backfill/switch/contract dan rolling compatibility.
+File yang sudah diaplikasikan **immutable**. Function definition dan grant yang dideploy berada dalam migration baru, bukan SQL manual di server produksi, init script terpisah, atau string DDL di Go. `schema_migrations`/runner dan lock migrasi dipakai per schema; hasil apply, checksum, durasi, dan versi dicatat. sqlc hanya menghasilkan kode typed dari query dan migration; ia tidak menjalankan migration, authorization, atau invariant atomik. Up/down berpasangan hanya jika down tidak menghapus fakta atau merusak binary yang masih berjalan; selain itu tulis forward-fix, restore checkpoint dan rencana pemulihan. [Standar database §8](database-standards.md#8-migrations-hak-akses-dan-operasi) menjelaskan expand/backfill/switch/contract dan rolling compatibility. Pengecualian `accounting/000001` yang juga membuat objek `finance` serta dependency awal `accounting`→`finance` didokumentasikan di [ADR-0006](../adr/0006-database-sql-layout.md); migration baru tidak boleh mengulang pola lintas schema ini.
 
 Perubahan function yang tetap kompatibel pada parameter, return, permission dan makna boleh `CREATE OR REPLACE FUNCTION` dalam migration **baru**. Mengubah signature, return type, error contract atau makna hasil adalah breaking: buat `_v2`, uji v1/v2 paralel, pindahkan caller, tunggu semua instance lama berhenti, lalu drop v1 pada migration contract terpisah. PostgreSQL menjelaskan batas `OR REPLACE`, ownership dan grant yang dipertahankan di [CREATE FUNCTION](https://www.postgresql.org/docs/18/sql-createfunction.html). Jangan otomatis `DROP CASCADE` pada function yang dipakai view/trigger.
 
@@ -31,7 +35,7 @@ Perubahan function yang tetap kompatibel pada parameter, return, permission dan 
 | Phase 3 | `budget.reserve_commitment_v1`, `finance.match_bank_line_v1`, `finance.post_fx_revaluation_v1` | Available hard budget, one-to-one match, period/source FX unik dan jurnal seimbang. |
 | Enterprise Expansion | `manufacturing.issue_material_v1`, `pos.claim_register_sale_v1`, `analytics.advance_checkpoint_v1` | WIP/stock satu kali, sale/provider reference unik, watermark hanya maju setelah batch tervalidasi. |
 
-Daftar ini menetapkan **kewajiban meninjau dan mengimplementasikan function DB pada slice terkait**, bukan izin membangun function generik besar. Nama final dan signature typed dicatat di migration serta dokumentasi modul sebelum handler dipakai. Jika satu invariant lebih aman sebagai `UNIQUE`/`CHECK` atau satu SQL CAS, gunakan constraint/CAS dan catat alasan; tidak perlu function pembungkus yang hanya memanggil satu `SELECT`. Sebaliknya, operasi multi-statement yang harus konsisten di satu owner tidak boleh tersebar sebagai SQL ad hoc tanpa pengujian race. Function/trigger awal `accounting.reject_overlapping_fiscal_period()` sudah ada di [migration Finance](../../backend/golang/services/finance/migrations/accounting/000001_grni_posting.up.sql); hardening berikutnya memakai migration baru.
+Daftar ini menetapkan **kewajiban meninjau dan mengimplementasikan function DB pada slice terkait**, bukan izin membangun function generik besar. Nama final dan signature typed dicatat di migration serta dokumentasi modul sebelum handler dipakai. Jika satu invariant lebih aman sebagai `UNIQUE`/`CHECK` atau satu SQL CAS, gunakan constraint/CAS dan catat alasan; tidak perlu function pembungkus yang hanya memanggil satu `SELECT`. Sebaliknya, operasi multi-statement yang harus konsisten di satu owner tidak boleh tersebar sebagai SQL ad hoc tanpa pengujian race. Function/trigger awal `accounting.reject_overlapping_fiscal_period()` sudah ada di [migration Finance](../../backend/database/migrations/accounting/000001_grni_posting.up.sql); hardening berikutnya memakai migration baru.
 
 ## 3. Batas tanggung jawab
 

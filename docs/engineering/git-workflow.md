@@ -46,7 +46,7 @@ feat(sales_invoice): add sales invoice CRUD
 - /sales/invoices/[guid]
 
 [Migration]
-- backend/golang/services/finance/migrations/<version>_sales_invoice.sql
+- backend/database/migrations/finance/<version>_sales_invoice.up.sql
 ```
 
 Contoh tanpa migration:

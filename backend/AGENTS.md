@@ -1,6 +1,6 @@
 # Instruksi agent — backend
 
-Berlaku untuk seluruh `backend/`, termasuk stack backend yang mungkin ditambahkan kelak. Baca [instruksi root](../AGENTS.md), [standar repository](../docs/engineering/repository-standards.md), [standar database](../docs/engineering/database-standards.md), dan [standar migration/function](../docs/engineering/database-functions-and-migrations.md) sebelum mengubah persistence atau kontrak.
+Berlaku untuk seluruh `backend/`, termasuk stack backend yang mungkin ditambahkan kelak. Baca [instruksi root](../AGENTS.md), [standar repository](../docs/engineering/repository-standards.md), [standar database](../docs/engineering/database-standards.md), dan [standar migration/function](../docs/engineering/database-functions-and-migrations.md) sebelum mengubah persistence atau kontrak. SQL kanonik berada di [database/](database/README.md), setara dengan direktori `golang/`.
 
 - Setiap domain memiliki owner untuk tabel, command, event, dan audit. Jangan menulis tabel owner lain atau membuat jalur SQL lintas owner.
 - Gunakan migration berversi untuk schema, index, constraint, trigger, function, dan grant. Runtime tidak menjalankan DDL saat startup; migration runner memakai role terpisah. Bukti deploy, compatibility, rollback atau forward-fix, dan uji PostgreSQL menyertai perubahan.

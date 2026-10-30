@@ -1,6 +1,6 @@
 # Enterprise ERP — Standar Repository dan Kontrak Lintas Aplikasi
 
-**Status:** baseline desain, diperbarui 29 Oktober 2026. **Berlaku untuk:** backend Go/Echo v5, web Next.js dengan acuan UI shadcn-admin MIT, mobile Flutter, kontrak API/event, database migration/function, dan infrastruktur. Dokumen ini menerjemahkan [Master PRD](../enterprise-erp-prd.md) menjadi aturan struktur kode. Detail implementasi berada pada [backend](backend-standards.md), [database](database-standards.md), [migration/function DB](database-functions-and-migrations.md), [frontend](frontend-standards.md), dan [mobile](mobile-standards.md). Keputusan bisnis yang belum final dicatat di [Implementation Readiness](../implementation-readiness.md).
+**Status:** baseline desain, diperbarui 30 Oktober 2026. **Berlaku untuk:** backend Go/Echo v5, web Next.js dengan acuan UI shadcn-admin MIT, mobile Flutter, kontrak API/event, database migration/function, dan infrastruktur. Dokumen ini menerjemahkan [Master PRD](../enterprise-erp-prd.md) menjadi aturan struktur kode. Detail implementasi berada pada [backend](backend-standards.md), [database](database-standards.md), [migration/function DB](database-functions-and-migrations.md), [frontend](frontend-standards.md), dan [mobile](mobile-standards.md). Keputusan bisnis yang belum final dicatat di [Implementation Readiness](../implementation-readiness.md).
 
 ## 1. Prinsip yang wajib dijaga
 
@@ -13,13 +13,18 @@
 
 ## 2. Struktur folder repository yang dituju
 
-Pohon ini adalah **target setelah scaffold**; saat ini repository sudah memisahkan `backend/golang`, `frontend/nextjs`, dan `mobile/flutter`, serta berisi dokumen, kontrak OpenAPI/event, dan migration SQL. Aplikasi belum dibuat. Folder/domain di dalam tiap stack ditambah saat slice terkait dikerjakan, sehingga tidak perlu membuat folder kosong. `AGENTS.md` di root dan direktori stack mengarahkan agent ke requirement yang berlaku.
+Pohon ini adalah **target setelah scaffold**; repository sudah memisahkan `backend/database`, `backend/golang`, `frontend/nextjs`, dan `mobile/flutter`, serta berisi dokumen dan kontrak OpenAPI/event. Skeleton aplikasi B-01 sudah ada; modul bisnis dan migration runner belum diimplementasikan. Folder/domain di dalam tiap stack ditambah saat slice terkait dikerjakan, sehingga tidak perlu membuat folder kosong. `AGENTS.md` di root dan direktori stack mengarahkan agent ke requirement yang berlaku.
 
 ```text
 erp/
 ├── AGENTS.md                        # Instruksi agent lintas repository
 ├── backend/
 │   ├── AGENTS.md                    # Aturan backend lintas stack
+│   ├── database/                    # SQL kanonik, setara golang
+│   │   ├── AGENTS.md
+│   │   ├── migrations/<schema>/      # DDL, function, grant berversi per schema
+│   │   ├── queries/<schema>/         # Query bernama sqlc per schema
+│   │   └── sqlc.yaml                # Input SQL dan output Go per owner
 │   └── golang/
 │       ├── AGENTS.md                # Go + Echo v5
 │       └── services/
@@ -64,6 +69,8 @@ Setiap service Go memakai Echo v5 hanya pada adapter HTTP menurut [ADR-0003](../
 
 Direktori level pertama memisahkan kanal produk; direktori level kedua memisahkan implementasi teknologi. [Peta struktur seluruh modul](target-module-structure.md) menunjukkan bentuk saat roadmap selesai. Bila kelak menilai stack lain, buat direktori saudara seperti `backend/<stack-baru>/`, `frontend/<stack-baru>/`, atau `mobile/<stack-baru>/` beserta standar stack dan ADR-nya. Implementasi baru harus tetap memakai PRD, ownership, kontrak, dan gate yang sama; baseline Go/Echo, Next.js dengan acuan shadcn-admin, dan Flutter berubah hanya melalui keputusan terpisah. Jangan membagi runtime satu aplikasi di antara dua direktori stack.
 
+`backend/database/` adalah direktori SQL bersama untuk stack Go aktif dan dapat dipakai ulang oleh stack backend lain kelak; kepemilikan tabel tetap per schema/service. sqlc menghasilkan kode Go ke adapter PostgreSQL service pemilik, bukan ke domain atau frontend. [ADR-0006](../adr/0006-database-sql-layout.md) mencatat transisi path tanpa mengubah isi 11 migration awal.
+
 **Repository dan deployment:** satu repository Git cukup untuk seluruh source dan kontrak. Backend terdiri dari lima deployable independen (`gateway`, `platform`, `commercial`, `operations`, `finance`), frontend Next.js satu deployable, dan migration/job database dijalankan terpisah terhadap PostgreSQL yang di-host/dioperasikan sebagai layanan tersendiri. Satu repository tidak berarti satu container atau satu server. CI membangun artefak per path/owner, memberi tag image dari commit yang sama, lalu deployment tiap layanan menggunakan image, konfigurasi, secret, health check, dan rollback sendiri. Migration dijalankan sekali secara terkontrol sebelum versi aplikasi yang membutuhkannya; database persisten tidak dibuat ulang pada setiap deploy dan secret tidak masuk Git. Mobile memakai pipeline build/distribusi sendiri dari repository yang sama. Jumlah repository baru dievaluasi jika ownership, kontrol akses source, atau lifecycle rilis benar-benar berbeda.
 
 ## 3. Ownership dan dependency rules
@@ -75,7 +82,8 @@ Direktori level pertama memisahkan kanal produk; direktori level kedua memisahka
 | `contracts/events/<domain>` | Producer | Envelope bersama, payload minimal | Mengirim row DB/PII penuh atau event tanpa version |
 | `frontend/nextjs/src/features/<feature>` | Web feature owner | Generated API client dan shared UI stabil | Import file privat feature lain |
 | `mobile/flutter/lib/features/<feature>` | Mobile feature owner | Repository/API contract dan core platform | Menganggap cache lokal authoritative untuk stock/credit |
-| `backend/golang/services/<service>/migrations` | Service/module owner | Tabel, index, trigger, function dan grant schema yang dimilikinya | Alter tabel owner lain atau edit migration yang sudah dijalankan |
+| `backend/database/migrations/<schema>` | Service/module owner pemilik schema | Tabel, index, trigger, function dan grant schema yang dimilikinya | Alter tabel owner lain atau edit migration yang sudah dijalankan |
+| `backend/database/queries/<schema>` | Service/module owner pemilik schema | Query bernama sqlc dan migration schema yang sama | Query lintas owner, SQL dinamis dari input atau edit generated Go manual |
 | `infra` | Platform/SRE | Manifest artifact berversi | Secrets dalam repository |
 
 **CODEOWNERS:** tiap service, contract, database migration, web/mobile feature, dan infra punya reviewer utama; perubahan finance/inventory juga perlu reviewer domain/controller sesuai risiko. PR yang mengubah contract harus menyertakan dampak consumer dan strategi compatibility.
@@ -124,7 +132,7 @@ Folder modul dipakai di dalam deployable di atas; `contracts/openapi/manufacturi
 | TypeScript/React | Fitur kebab-case folder, komponen PascalCase, hook `use...`, type/schema bernama domain; route file Next.js mengikuti nama khusus framework |
 | Dart/Flutter | Library/file snake_case, class UpperCamelCase, variable lowerCamelCase; nama fitur mengikuti domain |
 | SQL | Schema/tabel/kolom/index snake_case; tabel plural; nama constraint/index memakai `<table>_<purpose>_fk`, `_uq`, `_chk`, `_idx`. Primary key mengikuti nama default PostgreSQL `<table>_pkey` |
-| SQL function/migration | Function `schema.verb_object_vN` dengan signature typed; definisi/grant/trigger hanya melalui `migrations/<module>/<sequence>_<name>.up.sql`, versi lama dipertahankan selama rolling deploy |
+| SQL function/migration | Function `schema.verb_object_vN` dengan signature typed; definisi/grant/trigger hanya melalui `backend/database/migrations/<schema>/<sequence>_<name>.up.sql`, versi lama dipertahankan selama rolling deploy |
 | Event | `domain.aggregate.past_tense.vN`; command menggunakan verba imperatif |
 | Permission/error | `domain.resource.action` dan `DOMAIN_RESOURCE_REASON` |
 | Test | Berdampingan dengan unit yang diuji; integration/E2E pada folder tes khusus dengan nama skenario bisnis |

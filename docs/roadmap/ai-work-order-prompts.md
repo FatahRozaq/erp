@@ -37,7 +37,7 @@ Kerjakan hanya work order B-01 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.
 **Model:** Astra · High
 
 ```text
-Kerjakan hanya work order B-02 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.md. Audit SQL/runtime yang ada; implementasikan migration runner per owner dengan role/grant terpisah, versioning function DB, audit/idempotency/outbox/inbox, JetStream relay-consumer, retry/DLQ, serta backup/restore awal menurut standar database dan ADR-0004. Jangan edit migration yang sudah pernah dijalankan; perubahan memakai migration baru. Uji PostgreSQL asli untuk privilege, duplicate, out-of-order, crash/replay, dan restore tanpa fakta ganda. Centang B-02 hanya setelah bukti lengkap; laporkan file, command/hasil, risiko, dan ID berikutnya.
+Kerjakan hanya work order B-02 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.md. Audit SQL/runtime yang ada; implementasikan migration runner per schema dari `backend/database/migrations/<schema>/` dengan role/grant terpisah, versioning function DB, audit/idempotency/outbox/inbox, JetStream relay-consumer, retry/DLQ, serta backup/restore awal menurut standar database dan ADR-0004/ADR-0006. Simpan query baru di `backend/database/queries/<schema>/`, tambah mapping sqlc untuk schema aktif dan commit kode generated di adapter owner. Jangan edit migration yang sudah pernah dijalankan; perubahan memakai migration baru. Uji PostgreSQL asli untuk privilege, duplicate, out-of-order, crash/replay, dan restore tanpa fakta ganda. Centang B-02 hanya setelah bukti lengkap; laporkan file, command/hasil, risiko, dan ID berikutnya.
 ```
 
 ### B-03 — Gateway, keamanan, dan telemetry

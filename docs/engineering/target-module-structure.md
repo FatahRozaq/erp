@@ -36,7 +36,6 @@ backend/golang/
     │   ├── internal/reporting/        # operational reports, schedules, scoped export
     │   ├── internal/connector/        # registry, mapping, signed webhook adapter
     │   ├── internal/analytics/        # reporting-store ingestion, metrics, forecast
-    │   ├── migrations/{identity,organization,master,policy,runtime,...}/
     │   └── tests/{contract,integration}/
     ├── commercial/
     │   ├── go.mod, go.sum
@@ -49,7 +48,6 @@ backend/golang/
     │   ├── internal/fieldsales/       # route, visit, target
     │   ├── internal/pos/              # sale, register/shift, refund orchestration
     │   ├── internal/intercompany/     # commercial source document
-    │   ├── migrations/{purchase,sales,runtime,...}/
     │   └── tests/{contract,integration}/
     ├── operations/
     │   ├── go.mod, go.sum
@@ -60,7 +58,6 @@ backend/golang/
     │   ├── internal/transfer/         # intra/intercompany stock legs
     │   ├── internal/manufacturing/    # BOM, assembly WO, WIP, variance source
     │   ├── internal/transport/        # TMS plan dan append-only milestone
-    │   ├── migrations/{inventory,runtime,...}/
     │   └── tests/{contract,integration}/
     └── finance/
         ├── go.mod, go.sum
@@ -70,11 +67,27 @@ backend/golang/
         ├── internal/accounting/       # journal, GL, period, statements
         ├── internal/budget/           # commitment dan actual
         ├── internal/intercompany/     # due-to/from, tax, settlement
-        ├── migrations/{finance,accounting,runtime,...}/
         └── tests/{contract,integration}/
 ```
 
-`{...}` pada pohon di atas adalah **notasi ringkas dokumentasi**, bukan nama folder literal. `gateway/` dibuat ketika B-01 di-scaffold; empat owner lain sekarang baru berisi migration SQL. Folder migration yang sudah ada tetap dipertahankan, sedangkan folder baru muncul bersama migration per slice. `analytics/` tetap berada pada owner Platform/Data dengan reporting store dan role DB terpisah; ini tidak memberi hak menulis ledger domain. `scheduler` adalah kemampuan worker Platform/Reporting/Connector, bukan service atau folder generik yang harus ada sendiri.
+SQL kanonik berada pada direktori saudara `backend/database/`:
+
+```text
+backend/database/
+├── AGENTS.md
+├── sqlc.yaml                         # mapping schema/query/output Go
+├── migrations/
+│   ├── master/
+│   ├── purchase/
+│   ├── inventory/
+│   ├── accounting/
+│   └── <schema>/                     # termasuk *_runtime per owner
+└── queries/
+    ├── master/                       # query bernama yang sudah ada
+    └── <schema>/                     # dibuat saat query schema itu diperlukan
+```
+
+`{...}` pada pohon Go adalah **notasi ringkas dokumentasi**, bukan nama folder literal. Folder SQL mengikuti nama schema PostgreSQL, termasuk empat schema `*_runtime` terpisah. `gateway/` dan empat owner di-scaffold pada B-01; migration baseline sekarang dipusatkan di `backend/database/migrations/`. Folder query baru muncul ketika slice membutuhkan query nyata. `analytics/` tetap berada pada owner Platform/Data dengan reporting store dan role DB terpisah; ini tidak memberi hak menulis ledger domain. `scheduler` adalah kemampuan worker Platform/Reporting/Connector, bukan service atau folder generik yang harus ada sendiri.
 
 ### Isi satu modul Go yang nyata
 
@@ -92,12 +105,12 @@ services/operations/
 │   └── adapters/
 │       ├── http/                      # Echo handler, DTO, error mapping
 │       ├── postgres/                  # repository, typed function call, tx
+│       │   └── sqlc/                  # generated Go dari backend/database/queries/inventory/
 │       └── jetstream/                 # event relay/consumer
-├── migrations/inventory/
-│   ├── 000001_receipt_stock.up.sql
-│   └── 000002_return_inspection.up.sql
 └── tests/integration/                # PostgreSQL asli, race, retry, scope
 ```
+
+Migration untuk modul contoh ini berada di `backend/database/migrations/inventory/`; query SQLC di `backend/database/queries/inventory/` saat query pertama tersedia. Generated Go diletakkan di `internal/inventory/adapters/postgres/sqlc/`.
 
 Pola `domain/application/adapters` dipakai saat modul cukup kompleks; package kecil boleh lebih datar. `internal` melindungi implementasi service dari import lintas module Go. Tes unit dekat file Go, tes database/kontrak di bawah service owner. Worker tidak dibuat sebagai pemilik tabel baru. Panduan resmi Go memakai `internal` untuk paket pendukung dan `cmd` untuk executable bila ukuran program memerlukannya: [Go module layout](https://go.dev/doc/modules/layout). Detail dependency dan Echo ada di [standar backend](backend-standards.md).
 
@@ -105,10 +118,11 @@ Pola `domain/application/adapters` dipakai saat modul cukup kompleks; package ke
 
 | Artefak | Lokasi dan batas |
 |---|---|
-| Tabel, index, constraint, function, trigger, grant | `services/<owner>/migrations/<module>/000NNN_name.up.sql`; migration yang telah dijalankan immutable. |
+| Tabel, index, constraint, function, trigger, grant | `backend/database/migrations/<schema>/000NNN_name.up.sql`; migration yang telah dijalankan immutable. |
+| Query sqlc dan generated Go | `backend/database/queries/<schema>/` dan `services/<owner>/internal/<module>/adapters/postgres/sqlc/`; input SQL tetap kanonik di database. |
 | Pemanggil function DB | `services/<owner>/internal/<module>/adapters/postgres/`; signature dan parameter typed, dalam transaksi owner. |
 | Metadata `id`, `guid`, `created_at/by`, `updated_at/by`, `deleted_at/by`, `version` | Kolom pada tabel yang sesuai [standar database](database-standards.md), bukan satu package global yang menyembunyikan ownership. |
-| Audit, idempotency, outbox, inbox | Tabel owner melalui migration `runtime/` dan adapter runtime lokal; event/audit satu transaksi dengan mutasi terkait. |
+| Audit, idempotency, outbox, inbox | Tabel owner melalui migration `<owner>_runtime/` dan adapter runtime lokal; event/audit satu transaksi dengan mutasi terkait. |
 | Application log dan trace | Kode instrumentasi/redaksi di boundary service; output ke collector/platform observability, **bukan** file `logs/` di source repository. |
 | Reporting store final | Storage/read role terpisah di bawah owner Platform/Data; projection dan watermark di `platform/internal/analytics/`, source data tetap milik domain. |
 
