@@ -37,7 +37,7 @@ Jendela fase adalah **timebox perencanaan**, bukan izin menutup pekerjaan dengan
 
 ### G1 — Platform teknik ke Foundation (akhir W12)
 
-- [ ] CI memeriksa format/lint/build, migration **termasuk function/grant PostgreSQL**, OpenAPI/event, dependency scan dan tes yang sudah ada.
+- [ ] CI memeriksa format/lint/build, migration per schema **termasuk function/grant PostgreSQL**, sqlc generate/drift, OpenAPI/event, dependency scan dan tes yang sudah ada.
 - [ ] Echo HTTP boundary, OIDC/workload auth, tenant/entity scope, stable error, ETag/idempotency dan audit bekerja dalam uji integrasi.
 - [ ] PostgreSQL owner DB, function DB berversi dengan privilege minimum, outbox/inbox/JetStream replay, backup/restore awal, tracing/log redaksi dan dashboard error/pending terbukti.
 - [ ] Batas wrapper UI dan sumber shadcn-admin MIT terdokumentasi; adaptasi visual, manifest commit/hash/file dan uji aksesibilitas diselesaikan pada F-04/G2.

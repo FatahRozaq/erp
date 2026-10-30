@@ -17,6 +17,22 @@ jobs:
       - run: python scripts/validate_contracts.py
       - run: python scripts/validate_backlog.py
       - run: python scripts/check_migration_inventory.py
+  sqlc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned sqlc
+        run: |
+          curl -fsSL --retry 2 -o /tmp/sqlc.tar.gz https://github.com/sqlc-dev/sqlc/releases/download/v1.31.1/sqlc_1.31.1_linux_amd64.tar.gz
+          echo '497ae4fcdfa64c5b0c311ffe4c2bd991e43991e82e5367792ed78bc2dca27354  /tmp/sqlc.tar.gz' | sha256sum -c -
+          mkdir -p /tmp/erp-sqlc
+          tar -xzf /tmp/sqlc.tar.gz -C /tmp/erp-sqlc sqlc
+      - name: Generate sqlc and check drift
+        run: |
+          cd backend/database
+          /tmp/erp-sqlc/sqlc generate
+          cd ../..
+          test -z "$(git status --porcelain -- backend/golang/services/platform/internal/master/adapters/postgres/sqlc)"
   go:
     runs-on: ubuntu-latest
     strategy:

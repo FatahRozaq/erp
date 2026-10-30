@@ -5,6 +5,7 @@
 /backend/golang/services/operations/ @FatahRozaq
 /backend/golang/services/finance/ @FatahRozaq
 /backend/golang/services/gateway/ @FatahRozaq
+/backend/database/ @FatahRozaq
 /contracts/ @FatahRozaq
 /frontend/nextjs/ @FatahRozaq
 /mobile/flutter/ @FatahRozaq

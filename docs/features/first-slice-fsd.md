@@ -1,6 +1,6 @@
 # FSD-001 — SKU → PO → Goods Receipt → Stock Ledger
 
-**Status:** baseline implementasi, 28 Oktober 2026. **Owner:** Master (Platform), Purchase (Commercial), Inventory (Operations), Finance GRNI. **Scope:** satu tenant dan legal entity per dokumen, barang stok domestik IDR, tanpa bin dan tanpa lot pada fixture dasar. Rule pajak, valuasi, approval dan aktivasi mengikuti [keputusan bisnis](../decisions/mvp-business-policy.md). Kontrak HTTP berada di `contracts/openapi/{master,purchase,inventory}/v1.yaml`; event di `contracts/events/`; DDL di `backend/golang/services/{platform,commercial,operations,finance}/migrations/`.
+**Status:** baseline implementasi, 28 Oktober 2026. **Owner:** Master (Platform), Purchase (Commercial), Inventory (Operations), Finance GRNI. **Scope:** satu tenant dan legal entity per dokumen, barang stok domestik IDR, tanpa bin dan tanpa lot pada fixture dasar. Rule pajak, valuasi, approval dan aktivasi mengikuti [keputusan bisnis](../decisions/mvp-business-policy.md). Kontrak HTTP berada di `contracts/openapi/{master,purchase,inventory}/v1.yaml`; event di `contracts/events/`; DDL di `backend/database/migrations/<schema>/`.
 
 Prasyarat fixture M0: tenant, legal entity, branch, warehouse, principal/permission, vendor account aktif, approval policy dan akun Inventory/GRNI serta fiscal period OPEN. Slice ini tidak mendefinisikan lifecycle organisasi/vendor/IAM; owner M0 menyediakannya lewat contract atau seed integration test yang sah. Data produksi tidak boleh memakai fixture tersebut dan tetap memerlukan policy activation.
 

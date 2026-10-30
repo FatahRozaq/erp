@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - name: master
+    engine: postgresql
+    schema: migrations/master
+    queries: queries/master
+    gen:
+      go:
+        package: masterdb
+        out: ../golang/services/platform/internal/master/adapters/postgres/sqlc
+        sql_package: pgx/v5

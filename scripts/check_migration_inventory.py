@@ -16,6 +16,7 @@ for name, digest in expected.items():
     assert path.is_file(), f"baseline migration missing: {name}"
     actual = hashlib.sha256(path.read_bytes()).hexdigest()
     assert actual == digest, f"baseline migration changed: {name}"
-all_migrations = list((root / "backend/golang/services").glob("*/migrations/**/*.up.sql"))
+all_migrations = list((root / "backend/database/migrations").glob("*/*.up.sql"))
 assert len(all_migrations) >= len(expected), "migration inventory shrank"
+assert not list((root / "backend/golang/services").glob("*/migrations/**/*.sql")), "service-local SQL migrations remain"
 print(f"Preserved {len(expected)} baseline SQL migrations; {len(all_migrations)} total")

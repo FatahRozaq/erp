@@ -9,6 +9,7 @@
 | [Peta struktur seluruh modul](target-module-structure.md) | Menilai bentuk akhir Foundation sampai Enterprise Expansion | Lokasi modul Go, route/feature Next.js, feature Flutter, migration, tes, dan batas pertumbuhan folder |
 | [Backend Go + Echo v5](backend-standards.md) | Membuat service/command/worker | Layer/module folder, handler→domain→repository, API/event, outbox, security, logging, tests |
 | [Database PostgreSQL](database-standards.md) | Membuat migration dan model persistence | `id`/`guid`, actor/time/version, soft delete, immutable ledger/audit, FK/index/locking, decimal |
+| [SQL per schema dan sqlc](../../backend/database/README.md) | Menambah migration atau query typed | `backend/database/migrations/<schema>/`, `queries/<schema>/`, `sqlc.yaml`, output adapter Go |
 | [Migration dan function DB](database-functions-and-migrations.md) | Mengubah schema dan membuat function PostgreSQL yang dipanggil backend | Versi SQL, signature/grant, transaksi atomik, kompatibilitas, rollback/forward-fix dan tes PostgreSQL |
 | [Frontend Next.js + shadcn-admin](frontend-standards.md) | Membuat web dan BFF browser | App Router/feature folders, cookie session, data access, forms/tables, cache, error UX |
 | [Mobile Flutter](mobile-standards.md) | Membuat aplikasi salesman/approver/warehouse | Screen/ViewModel/Repository, local encryption, sync P2, device security, tests |

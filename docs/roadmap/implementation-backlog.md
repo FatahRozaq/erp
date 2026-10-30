@@ -59,7 +59,7 @@ Setiap blok work order memberikan **profil sumber yang diwarisi semua slice**: F
 
 | Slice / outcome untuk actor | Requirement PRD | Prasyarat | Size / status | Acceptance spesifik dan risiko |
 |---|---|---|---|---|
-| **B-02.1 — Migration/function dan metadata per owner** | NFR-DATA-01, FR-AUD-01 | B-01.2 | L / PLANNED | Runner checksum mengapply 11 SQL awal dan migration tambahan; empat DB, id/guid/audit/version, grant/function negative test dan upgrade/restore terbukti. **Risiko:** SQL awal belum runtime. |
+| **B-02.1 — Migration/function dan metadata per owner** | NFR-DATA-01, FR-AUD-01 | B-01.2 | L / PLANNED | Runner checksum per schema mengapply 11 SQL awal dari `backend/database/migrations/<schema>/` dan migration tambahan; empat DB, id/guid/audit/version, grant/function negative test dan upgrade/restore terbukti. Query aktif di `backend/database/queries/<schema>/` dihasilkan melalui sqlc dan generated Go diverifikasi CI. **Risiko:** SQL awal belum runtime. |
 | **B-02.2 — Commit sampai event diterima sekali secara bisnis** | FR-INT-01, NFR-REL-01 | B-02.1 | L / PLANNED | Command fixture commit+outbox; relay JetStream+inbox duplicate/gap/replay tidak mengganda fakta; operator melihat DLQ dan dapat replay berizin. **Risiko:** Crash, gap, poison event. |
 | **B-02.3 — Backup dan pemulihan awal** | NFR-REC-01 | B-02.2 | M / PLANNED | SRE restore fixture dengan checksum, operation registry dan source uniqueness tetap utuh; waktu dan kehilangan data diukur, bukan klaim RPO produksi. **Risiko:** Backup belum dapat dipulihkan. |
 
