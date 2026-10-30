@@ -1,5 +1,7 @@
 # Enterprise ERP Platform
 
+Repository GitHub utama: [FatahRozaq/erp](https://github.com/FatahRozaq/erp). Perubahan kode mengikuti [standar branch dan commit](docs/engineering/git-workflow.md); perencanaan awal tetap di `main`.
+
 B-01 menyediakan skeleton runtime untuk lima service Go/Echo, web Next.js, Flutter, dan infra lokal. Belum ada API bisnis, auth, migration runner, worker, atau integrasi visual shadcn-admin. Seluruh kontrak dan 11 migration SQL tetap kanonik dan belum dijalankan oleh aplikasi pada startup.
 
 ## Bootstrap

@@ -8,6 +8,7 @@ Dokumen ini berlaku untuk seluruh repository. Instruksi yang lebih spesifik bera
 2. [Indeks spesifikasi fitur](docs/features/README.md) menunjuk FSD, command matrix, model/data dictionary, UX, mobile sync, dan vektor QA per slice. [Indeks roadmap](docs/roadmap/README.md) menunjuk spesifikasi Phase 2, Phase 3, dan Enterprise Expansion.
 3. [Timeline](docs/roadmap/implementation-timeline.md), [work order AI](docs/roadmap/ai-work-orders.md), [prompt per ID](docs/roadmap/ai-work-order-prompts.md), dan [roadmap planning gate](docs/roadmap/roadmap-planning-gate.md) menetapkan urutan, checklist, serta kriteria selesai. Kerjakan satu work order terpilih beserta dependency minimumnya; jangan mencentang `[x]` tanpa bukti.
 4. [Indeks standar engineering](docs/engineering/README.md), [struktur repository](docs/engineering/repository-standards.md), dan [peta struktur seluruh modul](docs/engineering/target-module-structure.md) menetapkan batas owner, folder, kontrak, keamanan, dan lokasi modul sampai tahap final. Baca standar backend/frontend/mobile/database yang berlaku untuk file yang diubah.
+   [Standar branch dan commit](docs/engineering/git-workflow.md) berlaku untuk semua perubahan berikutnya.
 5. `contracts/openapi/` dan `contracts/events/` adalah kontrak wire kanonik. [Indeks keputusan arsitektur](docs/architecture/architecture-decisions.md) dan ADR di `docs/adr/` mencatat keputusan; periksa yang terkait sebelum mengganti pola yang sudah diputuskan.
 
 Jika sumber bertentangan atau sebuah perilaku belum dijelaskan, identifikasi letak konflik dan perbaiki dokumen/kontrak yang berwenang sebelum implementasi terkait. Jangan mengarang kebijakan bisnis dari contoh UI atau nama kolom.
@@ -16,6 +17,7 @@ Jika sumber bertentangan atau sebuah perilaku belum dijelaskan, identifikasi let
 
 ## Alur wajib saat mengerjakan kode
 
+- Perencanaan awal tetap di `main`; untuk setiap pekerjaan kode baru, buat branch baru dari `main` terbaru sesuai [standar Git](docs/engineering/git-workflow.md). Gunakan tipe `feature`, `fix`, atau `refactor` dan format commit yang ditentukan di sana.
 - Baca work order, FSD, keputusan bisnis, kontrak, standar engineering, dan gate yang relevan; periksa keadaan repository agar tidak mengulang pekerjaan.
 - Implementasikan per vertical slice dengan batas owner yang jelas. Ubah kontrak lebih dulu bila wire behavior berubah; sinkronkan handler, migration/function, klien, tes, dan dokumentasi yang terkena.
 - Pertahankan `id` internal database, `guid` publik, `created_at/by`, `updated_at/by`, `deleted_at/by`, `version`, audit, dan logging sesuai [standar database](docs/engineering/database-standards.md). Gunakan migration SQL berversi dan function DB untuk invariant atomik sesuai [standar migration/function](docs/engineering/database-functions-and-migrations.md). Jangan edit migration yang pernah dijalankan.

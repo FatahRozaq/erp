@@ -5,6 +5,7 @@
 | Dokumen | Dipakai saat | Isi utama |
 |---|---|---|
 | [Repository dan kontrak lintas aplikasi](repository-standards.md) | Membuat folder, ownership, CODEOWNERS, contract dan CI | Pohon repo, dependency boundaries, naming dan tipe data lintas layer |
+| [Branch dan commit](git-workflow.md) | Memulai perubahan kode dan mencatat riwayat Git | Branch `feature`/`fix`/`refactor`, judul `feat`/`fix`/`refactor`, body dan bagian Service/Page/Migration |
 | [Peta struktur seluruh modul](target-module-structure.md) | Menilai bentuk akhir Foundation sampai Enterprise Expansion | Lokasi modul Go, route/feature Next.js, feature Flutter, migration, tes, dan batas pertumbuhan folder |
 | [Backend Go + Echo v5](backend-standards.md) | Membuat service/command/worker | Layer/module folder, handler→domain→repository, API/event, outbox, security, logging, tests |
 | [Database PostgreSQL](database-standards.md) | Membuat migration dan model persistence | `id`/`guid`, actor/time/version, soft delete, immutable ledger/audit, FK/index/locking, decimal |
