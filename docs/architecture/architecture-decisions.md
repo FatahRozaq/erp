@@ -1,6 +1,6 @@
 # Baseline keputusan arsitektur sebelum coding
 
-**Scope:** baseline Foundation+MVP yang diperluas oleh [paket seluruh roadmap](../roadmap/README.md). Dokumen ini melengkapi [PRD §§28–35](../enterprise-erp-prd.md#28-system-architecture-dan-prinsip), [standar repository](../engineering/repository-standards.md), [ADR receipt](../adr/0001-receipt-limit-owner.md), [ADR fiscal period](../adr/0002-fiscal-period-overlap.md), [ADR Echo/Metronic](../adr/0003-echo-metronic.md), dan [ADR migration/function](../adr/0004-versioned-database-functions.md). Keputusan di bawah dipakai sebagai default code review; perubahan memerlukan ADR bernomor dan contract migration plan.
+**Scope:** baseline Foundation+MVP yang diperluas oleh [paket seluruh roadmap](../roadmap/README.md). Dokumen ini melengkapi [PRD §§28–35](../enterprise-erp-prd.md#28-system-architecture-dan-prinsip), [standar repository](../engineering/repository-standards.md), [ADR receipt](../adr/0001-receipt-limit-owner.md), [ADR fiscal period](../adr/0002-fiscal-period-overlap.md), [ADR Echo/Next.js](../adr/0003-echo-metronic.md), [ADR template shadcn-admin](../adr/0005-shadcn-admin-frontend.md), dan [ADR migration/function](../adr/0004-versioned-database-functions.md). Keputusan di bawah dipakai sebagai default code review; perubahan memerlukan ADR bernomor dan contract migration plan.
 
 | Keputusan | Baseline | Konsekuensi/guard |
 |---|---|---|
@@ -12,7 +12,7 @@
 | Cache | Redis untuk session/rate/cache non-authoritative | stock/credit/GL posting selalu primary DB; cache key scope version dan invalidation |
 | Document | object store private, signed URL pendek, quarantine/scan/hash | metadata owner di DB, URL tidak di-log; issued evidence immutable version |
 | Search/report | PostgreSQL FTS/projection awal, watermark/freshness | command tidak memakai projection sebagai authority; OpenSearch hanya lewat ADR berbasis beban |
-| Web/mobile | Next.js BFF+TypeScript dengan Metronic UI wrapper dan Flutter repository local/remote | OIDC/session dan database ERP sendiri; server authz; mobile offline order Phase 2; web cache scoped |
+| Web/mobile | Next.js BFF+TypeScript dengan shadcn-admin MIT UI wrapper dan Flutter repository local/remote | OIDC/session dan database ERP sendiri; server authz; mobile offline order Phase 2; web cache scoped |
 | Reliability | 99,9% API target awal, RPO 15 menit/RTO 4 jam target pilot yang perlu biaya/uji | backup WAL/PITR, restore rehearsal, SLO dan runbook sebelum produksi |
 
 **Batas transaksi:** stok/movement/reservation lokal Operations; credit bucket lokal Commercial; invoice/payment/journal lokal Finance; approval decision lokal Platform. Transaksi tidak menahan lock selama network call. Saga state terlihat operator, dengan retry bounded, idempotent ack dan reconciliation. Policy runtime tidak bisa mengubah immutable ledger; correction membuat dokumen baru. [Threat model](security-threat-model.md) memetakan trust boundary dan uji keamanan.

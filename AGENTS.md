@@ -24,6 +24,6 @@ Jika sumber bertentangan atau sebuah perilaku belum dijelaskan, identifikasi let
 
 ## Direktori stack
 
-Implementasi aktif berada di `backend/golang/` (Go + Echo v5), `frontend/nextjs/` (Metronic Next.js), dan `mobile/flutter/` (Flutter). `contracts/` dan `docs/` tetap bersama sebagai sumber lintas stack. Alternatif teknologi kelak memakai direktori saudara baru dan ADR/standar stack tersendiri; penambahan direktori tidak mengubah requirement maupun pilihan implementasi aktif.
+Implementasi aktif berada di `backend/golang/` (Go + Echo v5), `frontend/nextjs/` (Next.js dengan acuan UI shadcn-admin MIT), dan `mobile/flutter/` (Flutter). `contracts/` dan `docs/` tetap bersama sebagai sumber lintas stack. Alternatif teknologi kelak memakai direktori saudara baru dan ADR/standar stack tersendiri; penambahan direktori tidak mengubah requirement maupun pilihan implementasi aktif.
 
 Postman CLI tersedia untuk pekerjaan API bila diperlukan; OpenAPI di repository tetap sumber kontrak.

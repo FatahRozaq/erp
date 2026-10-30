@@ -7,4 +7,4 @@ Berlaku untuk seluruh `frontend/`. Baca [instruksi root](../AGENTS.md), [standar
 - Simpan kode per fitur, komponen bersama hanya untuk primitive stabil, dan kode vendor/generated terisolasi. Uji layar loading, error, empty, permission, stale version, aksesibilitas, dan alur pengguna yang berubah.
 - Jangan simpan token atau data sensitif dalam browser storage/log; ikuti threat model dan standar stack.
 
-Aturan implementasi web saat ini ada di [nextjs/AGENTS.md](nextjs/AGENTS.md). Stack frontend lain memerlukan instruksi spesifik sendiri tanpa mengganti baseline Metronic Next.js.
+Aturan implementasi web saat ini ada di [nextjs/AGENTS.md](nextjs/AGENTS.md). Stack frontend lain memerlukan instruksi spesifik sendiri tanpa mengganti baseline Next.js dengan acuan shadcn-admin.

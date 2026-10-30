@@ -19,7 +19,7 @@ Kerjakan hanya work order R-01 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.
 **Model:** Sol · Medium
 
 ```text
-Kerjakan hanya work order R-02 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.md. Baca PRD, gate G0, dan runbook; buat register dependency untuk tenant/entity pilot, data sintetis, volume/perangkat/jaringan, IdP, policy aktif, source/lisensi Metronic, serta sandbox provider. Isi owner, target waktu, status, dan fallback pengujian yang diketahui; tandai data yang belum diberikan sebagai belum tersedia, bukan menebak. Jangan menyalin aset berlisensi atau credential. Centang R-02 hanya jika bukti register memenuhi acceptance; laporkan input yang masih perlu owner dan pekerjaan berikutnya.
+Kerjakan hanya work order R-02 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.md. Baca PRD, gate G0, dan runbook; buat register dependency untuk tenant/entity pilot, data sintetis, volume/perangkat/jaringan, IdP, policy aktif, source/commit dan lisensi MIT shadcn-admin, serta sandbox provider. Isi owner, target waktu, status, dan fallback pengujian yang diketahui; tandai data yang belum diberikan sebagai belum tersedia, bukan menebak. Jangan menyalin aset berlisensi atau credential. Centang R-02 hanya jika bukti register memenuhi acceptance; laporkan input yang masih perlu owner dan pekerjaan berikutnya.
 ```
 
 ## T1 — Platform teknik
@@ -29,7 +29,7 @@ Kerjakan hanya work order R-02 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.
 **Model:** Sol · Medium
 
 ```text
-Kerjakan hanya work order B-01 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.md. Audit struktur yang sudah ada, lalu scaffold deployable Go/Echo, Next.js, Flutter, infra lokal, toolchain/lockfile, CODEOWNERS, dan CI format/lint/build/test/kontrak menurut docs/engineering/. Pertahankan 11 migration SQL dan kontrak yang ada; isolasi Metronic di wrapper, tanpa menyalin vendor source bila belum berlisensi. Buktikan clean checkout dapat membangun skeleton dan CI tidak memerlukan secret nyata. Centang hanya jika bukti lulus; laporkan hasil, gap, dan ID berikutnya.
+Kerjakan hanya work order B-01 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.md. Audit struktur yang sudah ada, lalu scaffold deployable Go/Echo, Next.js, Flutter, infra lokal, toolchain/lockfile, CODEOWNERS, dan CI format/lint/build/test/kontrak menurut docs/engineering/. Pertahankan 11 migration SQL dan kontrak yang ada; siapkan wrapper untuk shadcn-admin MIT tanpa menyalin template secara utuh. Buktikan clean checkout dapat membangun skeleton dan CI tidak memerlukan secret nyata. Centang hanya jika bukti lulus; laporkan hasil, gap, dan ID berikutnya.
 ```
 
 ### B-02 — Runtime data dan event
@@ -79,7 +79,7 @@ Kerjakan hanya work order F-03 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.
 **Model:** Sol · High
 
 ```text
-Kerjakan hanya work order F-04 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.md. Baca standar frontend/mobile, ADR Echo–Metronic, dan kontrak UI; bangun BFF Next.js dengan OIDC/session/CSRF/entity switcher, generated API types, serta Flutter online shell/repository dasar. Integrasikan Metronic hanya dari paket dan lisensi yang sah melalui wrapper dengan vendor manifest. Uji login/logout, scope switch/cache purge, keyboard/accessibility, authz server, dan build web/mobile. Bila aset vendor belum tersedia, kerjakan bagian independen dan biarkan F-04 terbuka; laporkan bukti dan gap.
+Kerjakan hanya work order F-04 sesuai docs/roadmap/ai-work-orders.md dan AGENTS.md. Baca standar frontend/mobile, ADR Echo/Next.js dan ADR-0005 shadcn-admin, dan kontrak UI; bangun BFF Next.js dengan OIDC/session/CSRF/entity switcher, generated API types, serta Flutter online shell/repository dasar. Adaptasikan shadcn-admin MIT dari source resmi yang dipin ke Next.js melalui wrapper dengan manifest commit/hash/file serta pemberitahuan lisensi/copyright. Uji login/logout, scope switch/cache purge, keyboard/accessibility, authz server, dan build web/mobile. Bila adaptasi template belum selesai, kerjakan bagian independen dan biarkan F-04 terbuka; laporkan bukti dan gap.
 ```
 
 ## T3 — MVP vertical slices

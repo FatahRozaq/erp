@@ -1,6 +1,6 @@
 # Enterprise ERP Platform
 
-B-01 menyediakan skeleton runtime untuk lima service Go/Echo, web Next.js, Flutter, dan infra lokal. Belum ada API bisnis, auth, migration runner, worker, atau integrasi visual Metronic. Seluruh kontrak dan 11 migration SQL tetap kanonik dan belum dijalankan oleh aplikasi pada startup.
+B-01 menyediakan skeleton runtime untuk lima service Go/Echo, web Next.js, Flutter, dan infra lokal. Belum ada API bisnis, auth, migration runner, worker, atau integrasi visual shadcn-admin. Seluruh kontrak dan 11 migration SQL tetap kanonik dan belum dijalankan oleh aplikasi pada startup.
 
 ## Bootstrap
 
@@ -18,4 +18,4 @@ Toolchain dipin di `go.mod` per service (Go 1.25.10), `frontend/nextjs/package-l
 1. [Instruksi agent](AGENTS.md) dan [standar engineering](docs/engineering/README.md).
 2. [Master PRD](docs/enterprise-erp-prd.md), [FSD](docs/features/README.md), dan [kontrak](contracts/openapi/README.md).
 3. [Backlog](docs/roadmap/implementation-backlog.md), [work order](docs/roadmap/ai-work-orders.md), dan [timeline](docs/roadmap/implementation-timeline.md).
-4. [Dependency pilot dan aset](docs/roadmap/r-02-dependency-register.md). Source/lisensi Metronic, IdP, policy riil, dan provider sandbox belum tersedia; gunakan fixture desain sampai owner menyediakan input itu.
+4. [Dependency pilot dan aset](docs/roadmap/r-02-dependency-register.md). Template shadcn-admin MIT telah dipilih sebagai acuan UI, tetapi komponen belum diadaptasi ke Next.js; IdP, policy riil dan provider sandbox masih memerlukan input owner.

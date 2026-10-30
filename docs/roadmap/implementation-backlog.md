@@ -8,7 +8,7 @@ Pilih satu work order yang prerequisite-nya lulus, lalu satu slice. Setiap slice
 
 Setiap blok work order memberikan **profil sumber yang diwarisi semua slice**: FSD, kontrak HTTP/event, data, UX dan QA. Field acceptance menyebut kasus, tabel/aggregate/layar atau vektor spesifik untuk mempersempit bacaan; semua requirement ID merujuk [PRD](../enterprise-erp-prd.md). R-01/R-02 dan gate adalah pekerjaan delivery/operasional: API/data/UX merupakan objek audit, bukan endpoint baru. B-01/B-02 adalah enabler teknis dengan demonstrasi alur utuh.
 
-**Urutan Foundation dan integrasi:** F-01/F-02/F-03 membangun feature UI pada skeleton B-01 dan menguji domain/API dengan identity sintetis. F-04 menyelesaikan BFF/login/entity-switch/Metronic dan demonstrasi klien terintegrasi sebelum G2; kelulusan feature test awal bukan bukti login end-to-end. Boundary yang implementasinya berada di paket berikut diuji dengan kontrak/fixture terlebih dulu, lalu wajib diuji dengan owner nyata pada slice integrasi yang disebut (M-05.1 untuk release, M-07.1 untuk invoice/correction).
+**Urutan Foundation dan integrasi:** F-01/F-02/F-03 membangun feature UI pada skeleton B-01 dan menguji domain/API dengan identity sintetis. F-04 menyelesaikan BFF/login/entity-switch/shadcn-admin dan demonstrasi klien terintegrasi sebelum G2; kelulusan feature test awal bukan bukti login end-to-end. Boundary yang implementasinya berada di paket berikut diuji dengan kontrak/fixture terlebih dulu, lalu wajib diuji dengan owner nyata pada slice integrasi yang disebut (M-05.1 untuk release, M-07.1 untuk invoice/correction).
 
 **Ukuran relatif:** S=2–3, M=4–6, L=7–10 person-days gabungan implementasi/review/tes. Ini estimasi awal, bukan durasi AI atau komitmen kalender. L harus dipecah lagi bila tidak muat satu sprint squad; item NEEDS_SPEC perlu re-estimasi setelah detailnya ditutup. Waiting time lisensi/provider/UAT dan hypercare 2–4 minggu tidak termasuk effort. E-06.2 bersyarat dan harus diestimasi ulang bila split dipilih.
 
@@ -38,7 +38,7 @@ Setiap blok work order memberikan **profil sumber yang diwarisi semua slice**: F
 | Slice / outcome untuk actor | Requirement PRD | Prasyarat | Size / status | Acceptance spesifik dan risiko |
 |---|---|---|---|---|
 | **R-02.1 — Register lingkungan dan kapasitas** | NFR-SCALE-01, NFR-UX-01 | R-01.2 | S / DONE | Catat tenant/entity, baseline KPI, volume, perangkat, jaringan, staffing dan owner bernama atau belum ditunjuk; status dan target/fallback eksplisit. Bukti: [REG-001 ENV-01–11](r-02-dependency-register.md#r-021--lingkungan-data-workload-dan-kpi). **Risiko:** Input pilot belum diberikan. |
-| **R-02.2 — Register aset, provider dan policy** | FR-INT-01, FR-TAX-01 | R-02.1 | S / DONE | Metronic/IdP/provider/COA/tax/credit punya jalur perolehan, responsible role, target dan fallback; tidak menganggap register sebagai aset tersedia. Bukti: [REG-001 EXT-01–14](r-02-dependency-register.md#r-022--idp-policy-aset-metronic-dan-provider). **Risiko:** Lisensi dan credential belum tersedia. |
+| **R-02.2 — Register aset, provider dan policy** | FR-INT-01, FR-TAX-01 | R-02.1 | S / DONE | shadcn-admin/IdP/provider/COA/tax/credit punya jalur source atau konfigurasi, responsible role, target dan fallback; tidak menganggap register sebagai aset tersedia. Bukti: [REG-001 EXT-01–14](r-02-dependency-register.md#r-022--idp-policy-template-ui-dan-provider). **Risiko:** Source template belum diadaptasi; credential provider belum tersedia. |
 
 ## B-01
 
@@ -48,7 +48,7 @@ Setiap blok work order memberikan **profil sumber yang diwarisi semua slice**: F
 
 | Slice / outcome untuk actor | Requirement PRD | Prasyarat | Size / status | Acceptance spesifik dan risiko |
 |---|---|---|---|---|
-| **B-01.1 — Clean bootstrap tiga stack** | NFR-MAIN-01 | R-02.2 | L / DONE | Developer menjalankan skeleton Echo, Next.js dan Flutter di folder stack; lockfile dan README reproducible, source vendor hanya bila berizin. **Bukti:** [B-01](b-01-evidence.md) clean clone, build dan smoke Compose. **Risiko:** Native APK/IPA dan Metronic berizin menunggu tahap terkait. |
+| **B-01.1 — Clean bootstrap tiga stack** | NFR-MAIN-01 | R-02.2 | L / DONE | Developer menjalankan skeleton Echo, Next.js dan Flutter di folder stack; lockfile dan README reproducible, source vendor hanya bila berizin. **Bukti:** [B-01](b-01-evidence.md) clean clone, build dan smoke Compose. **Risiko:** Native APK/IPA dan adaptasi shadcn-admin menunggu tahap terkait. |
 | **B-01.2 — CI dan kontrak di clean workspace** | NFR-MAIN-01, NFR-INT-01 | B-01.1 | M / DONE | Build/lint/format/contract/examples dan generated web types drift diuji; CODEOWNERS mencatat reviewer sementara dan owner domain aktual masih perlu diikat saat tersedia; CI tanpa secret riil. **Bukti:** [B-01](b-01-evidence.md) dan `.github/workflows/ci.yml`. **Risiko:** Hosted CI belum berjalan tanpa remote. |
 
 ## B-02
@@ -118,7 +118,7 @@ Setiap blok work order memberikan **profil sumber yang diwarisi semua slice**: F
 
 | Slice / outcome untuk actor | Requirement PRD | Prasyarat | Size / status | Acceptance spesifik dan risiko |
 |---|---|---|---|---|
-| **F-04.1 — User login dan memilih entity di web** | FR-IAM-01, NFR-ACC-01 | F-01.2 | L / PLANNED | Next.js BFF OIDC/PKCE/session/CSRF, switch/logout purge; wrapper Metronic dengan vendor manifest resmi; keyboard/focus/loading/error teruji. **Risiko:** CSRF dan cache lintas scope. |
+| **F-04.1 — User login dan memilih entity di web** | FR-IAM-01, NFR-ACC-01 | F-01.2 | L / PLANNED | Next.js BFF OIDC/PKCE/session/CSRF, switch/logout purge; wrapper shadcn-admin dengan manifest commit/hash/file/lisensi MIT; keyboard/focus/loading/error teruji. **Risiko:** CSRF dan cache lintas scope. |
 | **F-04.2 — User mobile online dan locale foundation** | NFR-I18N-01, NFR-ACC-01, FR-IAM-01 | F-04.1 | L / PLANNED | Flutter secure storage+repository+online read shell; logout/revoke, generated types dan build; fondasi ID/EN, date/timezone/currency di kedua klien. **Risiko:** Token storage dan decimal locale. |
 
 ## M-01

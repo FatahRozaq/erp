@@ -1,7 +1,7 @@
 # Enterprise ERP — Product Requirements Document
 
-**Versi:** 1.3.1 (audit backlog R-01)  
-**Tanggal:** 29 Oktober 2026  
+**Versi:** 1.3.2 (keputusan template frontend)
+**Tanggal:** 30 Oktober 2026
 **Status:** Baseline implementasi bertahap; gap detail per slice mengikuti audit R-01 dan Definition of Ready; aktivasi bisnis per tenant menunggu persetujuan owner  
 **Pemilik:** Product Management bersama Finance, Sales, Purchasing, Warehouse, dan Technology  
 **Domain awal:** Distribution / FMCG / Trading  
@@ -13,9 +13,11 @@
 
 **Perubahan v1.2:** G-01–G-06 mendapat [keputusan baseline bisnis MVP](decisions/mvp-business-policy.md) dengan contoh angka dan kontrol aktivasi per legal entity. Pendapatan dan COGS mengikuti perpindahan kendali yang dibuktikan POD accepted untuk profil kontrak default; dispatch memindahkan stok ke in transit. Angka policy adalah default implementasi, bukan pengesahan kebijakan perusahaan.
 
-**Perubahan v1.3:** Seluruh tahap sampai bounded Enterprise Expansion mempunyai [paket desain](roadmap/README.md) dan [gerbang kesiapan](roadmap/roadmap-planning-gate.md). Backend HTTP memakai [Echo v5](adr/0003-echo-metronic.md), web memakai Metronic Next.js sebagai UI shell/wrapper; OIDC/BFF dan owner database ERP tetap menjadi sumber otoritas. Schema dan function PostgreSQL dipasang lewat [migration berversi](adr/0004-versioned-database-functions.md). Nilai vendor, pajak, COA, lisensi dan bukti runtime masih merupakan gate aktivasi.
+**Perubahan v1.3:** Seluruh tahap sampai bounded Enterprise Expansion mempunyai [paket desain](roadmap/README.md) dan [gerbang kesiapan](roadmap/roadmap-planning-gate.md). Backend HTTP memakai [Echo v5](adr/0003-echo-metronic.md); OIDC/BFF dan owner database ERP tetap menjadi sumber otoritas. Schema dan function PostgreSQL dipasang lewat [migration berversi](adr/0004-versioned-database-functions.md). Nilai vendor, pajak, COA, lisensi dan bukti runtime masih merupakan gate aktivasi.
 
 **Perubahan v1.3.1 (R-01):** [Backlog dan audit](roadmap/r-01-audit.md) memetakan seluruh roadmap, mengungkap gap detail sebelum kode slice terkait, menyelaraskan label fase approval/delegasi/expense/bank/search dengan §54 dan work order, serta memperbaiki referensi BR yang tidak terdefinisi pada §14. Scope bisnis tetap mengacu requirement di bawah.
+
+**Perubahan v1.3.2:** Template frontend diganti menjadi [shadcn-admin MIT](adr/0005-shadcn-admin-frontend.md) sebagai acuan UI. Source Vite diadaptasi ke Next.js yang tetap menjadi stack aktif; syarat pengadaan Metronic dihapus dari gate dan work order mendatang.
 
 ## Daftar isi
 
@@ -139,7 +141,7 @@ Sponsor: CEO/COO/CFO. Process owner: Sales Director, Purchasing Manager, Warehou
 
 ## 12. Constraints
 
-Stack wajib: Go dengan Echo v5 pada HTTP adapter, PostgreSQL dengan SQL migration dan function DB berversi untuk invariant lokal atomik, Redis, broker, REST eksternal, Next.js/TypeScript dengan UI shell Metronic, Flutter/Dart. Deploy lokal Docker Compose; production dapat menuju Kubernetes. Batas penyimpanan data pribadi, lokasi hosting, SLA, dan lisensi komponen ditetapkan saat discovery pelanggan. Tidak ada direct SQL lintas owner database. Semua posting finance dan inventory harus memiliki jejak sumber dan mekanisme reversal.
+Stack wajib: Go dengan Echo v5 pada HTTP adapter, PostgreSQL dengan SQL migration dan function DB berversi untuk invariant lokal atomik, Redis, broker, REST eksternal, Next.js/TypeScript dengan acuan UI shadcn-admin MIT, Flutter/Dart. Deploy lokal Docker Compose; production dapat menuju Kubernetes. Batas penyimpanan data pribadi, lokasi hosting, SLA, dan lisensi komponen ditetapkan saat discovery pelanggan. Tidak ada direct SQL lintas owner database. Semua posting finance dan inventory harus memiliki jejak sumber dan mekanisme reversal.
 
 ## 13. ERP Module Map dan Business Capability Map
 
@@ -789,7 +791,7 @@ Adapter per provider (bank, payment gateway, marketplace, e-commerce, logistics,
 
 ## 36. Web Architecture dan UX
 
-Next.js 16.x + TypeScript, React, **Metronic Next.js** untuk shell/design tokens/komponen presentasi, Tailwind sesuai bundle resmi, TanStack Query/Table, React Hook Form, Zod. Versi dependency mengikuti bundle yang dibeli dan dikunci setelah smoke build. ERP membungkus komponen vendor di UI wrapper milik repo; contoh auth/database vendor tidak dipakai. SSR untuk shell, auth-aware landing, initial view bila membantu TTFB; transaction grids/forms sebagai client components. Server memvalidasi ulang semua input. Query cache keyed by tenant/entity/scope dan diinvalidasi setelah command; switch entity menghapus privileged cache lama. Zustand hanya untuk UI state lintas halaman yang tidak cocok URL/query cache; Redux Toolkit bila domain client state kompleks benar-benar dibutuhkan. Server/business state tetap di API/TanStack Query. Detail keputusan ada di [ADR-0003](adr/0003-echo-metronic.md).
+Next.js 16.x + TypeScript, React, **shadcn-admin MIT** sebagai acuan shell/design tokens/komponen presentasi yang diadaptasi dari Vite ke Next.js, Tailwind, TanStack Query/Table, React Hook Form, Zod. Versi dependency dipin dalam lockfile setelah adaptasi dan smoke build. ERP membungkus komponen vendor di UI wrapper milik repo; contoh auth/database vendor tidak dipakai. SSR untuk shell, auth-aware landing, initial view bila membantu TTFB; transaction grids/forms sebagai client components. Server memvalidasi ulang semua input. Query cache keyed by tenant/entity/scope dan diinvalidasi setelah command; switch entity menghapus privileged cache lama. Zustand hanya untuk UI state lintas halaman yang tidak cocok URL/query cache; Redux Toolkit bila domain client state kompleks benar-benar dibutuhkan. Server/business state tetap di API/TanStack Query. Detail keputusan template ada di [ADR-0005](adr/0005-shadcn-admin-frontend.md); keputusan Echo/Next.js tetap pada [ADR-0003](adr/0003-echo-metronic.md).
 
 Layout: sidebar modul permission-based, top nav, breadcrumb, global search, notification, user/entity switcher, approval inbox. Modul punya list/detail/create/edit/approval/history/attachment/audit; table mendukung filter/sort/pagination/saved view/export/import/bulk action dengan preview/confirmation dan permission check. Dynamic forms memakai metadata versioned, field kritikal tetap divalidasi server. Responsive tablet, keyboard navigation, focus state, aria labels, localization, currency/date/timezone formatting. Role dashboard: Executive revenue/gross profit/cash/AR/AP; Sales Manager target/order/conversion; Warehouse Manager fill rate/backlog/expiring; Finance Manager aging/closing; Salesman route/visit/order; Approver pending/SLA.
 

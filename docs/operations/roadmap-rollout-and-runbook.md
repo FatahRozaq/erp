@@ -27,4 +27,4 @@
 - **Reporting/forecast stale:** dashboard menampilkan `as_of` dan status STALE; export resmi dihentikan sampai gap/replay dan parity selesai. Forecast lama tidak boleh diam-diam dipakai untuk keputusan baru.
 - **Service split opsional:** ADR per split memuat owner data, dual-run parity, cutover point, dan rollback binary/schema yang kompatibel. Bila invoice dan journal dipisah, `POSTING_PENDING` harus terlihat dan period close menolak pending.
 
-Runbook operasional per tenant melengkapi nilai yang tidak boleh ditebak dari desain: endpoint IdP/provider, secret reference, rekening/COA, tax rule, carrier, volume, jadwal, personel on-call dan persetujuan lisensi aset Metronic. Ini adalah input aktivasi lingkungan nyata, bukan alasan untuk menunda penulisan handler terhadap kontrak sintetis.
+Runbook operasional per tenant melengkapi nilai yang tidak boleh ditebak dari desain: endpoint IdP/provider, secret reference, rekening/COA, tax rule, carrier, volume, jadwal, personel on-call dan inventaris lisensi MIT/source shadcn-admin yang diadaptasi. Ini adalah input aktivasi lingkungan nyata, bukan alasan untuk menunda penulisan handler terhadap kontrak sintetis.

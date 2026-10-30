@@ -1,6 +1,6 @@
 # ADR-0003 — Echo v5 dan Metronic Next.js untuk ERP
 
-**Status:** diterima sebagai baseline desain pada 29 Oktober 2026. **Owner:** Architecture, Backend Lead, Web Lead. **Cakupan:** seluruh roadmap; versi patch dikunci saat scaffold dari artefak resmi yang benar-benar dipakai.
+**Status:** keputusan Echo v5 dan Next.js tetap berlaku; keputusan template Metronic digantikan oleh [ADR-0005](0005-shadcn-admin-frontend.md) pada 30 Oktober 2026. Isi Metronic di bawah adalah catatan keputusan historis, bukan instruksi implementasi aktif. **Owner:** Architecture, Backend Lead, Web Lead.
 
 ## Keputusan
 

@@ -9,7 +9,7 @@
 | [Backend Go + Echo v5](backend-standards.md) | Membuat service/command/worker | Layer/module folder, handler→domain→repository, API/event, outbox, security, logging, tests |
 | [Database PostgreSQL](database-standards.md) | Membuat migration dan model persistence | `id`/`guid`, actor/time/version, soft delete, immutable ledger/audit, FK/index/locking, decimal |
 | [Migration dan function DB](database-functions-and-migrations.md) | Mengubah schema dan membuat function PostgreSQL yang dipanggil backend | Versi SQL, signature/grant, transaksi atomik, kompatibilitas, rollback/forward-fix dan tes PostgreSQL |
-| [Frontend Metronic Next.js](frontend-standards.md) | Membuat web dan BFF browser | App Router/feature folders, cookie session, data access, forms/tables, cache, error UX |
+| [Frontend Next.js + shadcn-admin](frontend-standards.md) | Membuat web dan BFF browser | App Router/feature folders, cookie session, data access, forms/tables, cache, error UX |
 | [Mobile Flutter](mobile-standards.md) | Membuat aplikasi salesman/approver/warehouse | Screen/ViewModel/Repository, local encryption, sync P2, device security, tests |
 
 ## Aturan penggunaan

@@ -1,14 +1,14 @@
 # Standar frontend web ERP
 
 **Status:** baseline desain implementasi, 29 Oktober 2026  
-**Berlaku untuk:** `frontend/nextjs` (Metronic Next.js, App Router, TypeScript)  
+**Berlaku untuk:** `frontend/nextjs` (Next.js App Router, TypeScript, acuan UI shadcn-admin MIT)
 **Sumber kebutuhan:** [Enterprise ERP PRD](../enterprise-erp-prd.md), terutama bab 33, 36, 38–40, dan 49.
 
 ## 1. Keputusan arsitektur
 
 Web adalah klien ERP dan BFF (Backend for Frontend). Gateway/API Go tetap pemilik aturan bisnis, otorisasi, transaksi, audit, `version`, dan kalkulasi final. Next.js mengurus halaman, sesi browser, komposisi data untuk UI, dan endpoint BFF yang diperlukan browser. UI tidak menulis langsung ke basis data atau broker.
 
-Gunakan Next.js 16 App Router bersama **Metronic Next.js** sebagai shell dan sistem UI sesuai [ADR-0003](../adr/0003-echo-metronic.md). Skeleton B-01 memin Next.js/React independen tanpa source Metronic. Saat bundle berizin diterima, versi paket yang nyata diperiksa kompatibilitasnya dan lockfile diperbarui sebelum integrasi visual F-04. `page.tsx` dan `layout.tsx` tetap Server Components secara default; beri `"use client"` hanya pada form, tabel, dialog, dan interaksi browser. Route group untuk layout tidak mengubah URL, sedangkan kode fitur di luar `app` menjaga folder route tetap tipis. Ini sesuai [struktur proyek Next.js](https://nextjs.org/docs/app/getting-started/project-structure) dan [batas Server/Client Components](https://nextjs.org/docs/app/getting-started/server-and-client-components).
+Gunakan Next.js 16 App Router dengan [shadcn-admin MIT](https://github.com/satnaing/shadcn-admin) sebagai acuan shell dan sistem UI sesuai [ADR-0005](../adr/0005-shadcn-admin-frontend.md). Template sumber berbasis Vite; adaptasikan komponen yang diperlukan ke Next.js, tanpa membawa router atau demo auth/data Vite. Pin commit/hash sumber dan versi dependency sebelum integrasi visual F-04. `page.tsx` dan `layout.tsx` tetap Server Components secara default; beri `"use client"` hanya pada form, tabel, dialog, dan interaksi browser. Route group untuk layout tidak mengubah URL, sedangkan kode fitur di luar `app` menjaga folder route tetap tipis. Ini sesuai [struktur proyek Next.js](https://nextjs.org/docs/app/getting-started/project-structure) dan [batas Server/Client Components](https://nextjs.org/docs/app/getting-started/server-and-client-components).
 
 Pilih satu alur data: **browser → same-origin BFF Next.js → gateway `/api/v1` → domain Go**. Server Components membaca melalui lapisan akses server yang sama. Jangan membuat *catch-all proxy* yang bebas meneruskan path/header pengguna; setiap route BFF yang diperlukan harus punya method, input, dan upstream tujuan yang eksplisit. OpenAPI per domain di `contracts/openapi/<domain>/v1.yaml` adalah kontrak lintas klien; kode hasil generator di web harus mengikuti kontrak tersebut dan tidak diedit tangan. Pola server-side data access dan DTO minimal mengikuti [panduan keamanan data Next.js](https://nextjs.org/docs/app/guides/data-security).
 
@@ -17,7 +17,7 @@ Pilih satu alur data: **browser → same-origin BFF Next.js → gateway `/api/v1
 ```text
 frontend/nextjs/
 ├── package.json
-├── vendor-manifest.json             # versi/checksum/sumber bundle Metronic berizin
+├── vendor-manifest.json             # commit/checksum/file/lisensi MIT source yang diadaptasi
 ├── next.config.ts
 ├── tsconfig.json
 ├── eslint.config.mjs
@@ -35,7 +35,7 @@ frontend/nextjs/
     │   ├── api/bff/sales-orders/route.ts
     │   └── api/bff/sales-orders/[guid]/submit/route.ts
     ├── components/
-    │   ├── ui/                       # wrapper primitive Metronic yang dimiliki repo
+    │   ├── ui/                       # wrapper primitive shadcn-admin yang dimiliki repo
     │   └── layout/                   # shell, sidebar, entity switcher
     ├── features/
     │   └── sales-orders/
@@ -46,7 +46,7 @@ frontend/nextjs/
     │       ├── model/                # view model/mapper DTO, bukan domain truth
     │       └── tests/
     ├── generated/openapi/           # hasil generator, read-only dalam review
-    ├── vendor/metronic/              # aset/komponen vendor berizin, akses repo privat
+    ├── vendor/shadcn-admin/          # source template MIT yang benar-benar diadaptasi
     ├── lib/
     │   ├── api/                     # transport BFF/browser dan gateway/server
     │   ├── auth/                    # session.server.ts, permission view helpers
@@ -59,7 +59,7 @@ frontend/nextjs/
     └── proxy.ts                     # redirect optimistis saja, opsional
 ```
 
-Nama domain mengikuti PRD (`sales-orders`, `purchase-orders`, `inventory`, `finance`, `approvals`, `organization`). Tambah folder fitur saat ada layar/behavior nyata; jangan membuat folder kosong untuk seluruh peta modul. `components/ui` dan `components/layout` adalah wrapper stabil lintas fitur; fitur tidak mengimpor `vendor/metronic` langsung. Bila nanti ada aplikasi web kedua, barulah ekstrak primitive stabil ke package UI bersama. [Boilerplate Metronic Next.js](https://docs.keenthemes.com/metronic-nextjs/getting-started/installation) membawa struktur dan demo sendiri; adaptasi yang disetujui dicatat di vendor manifest, bukan menyalin demo auth/data ke domain ERP.
+Nama domain mengikuti PRD (`sales-orders`, `purchase-orders`, `inventory`, `finance`, `approvals`, `organization`). Tambah folder fitur saat ada layar/behavior nyata; jangan membuat folder kosong untuk seluruh peta modul. `components/ui` dan `components/layout` adalah wrapper stabil lintas fitur; fitur tidak mengimpor `vendor/shadcn-admin` langsung. Bila nanti ada aplikasi web kedua, barulah ekstrak primitive stabil ke package UI bersama. Adaptasi source [shadcn-admin](https://github.com/satnaing/shadcn-admin) dicatat di vendor manifest beserta lisensi/copyright; demo auth/data dan router Vite tidak masuk domain ERP.
 
 ## 3. Aturan dependensi dan penamaan
 
@@ -102,7 +102,7 @@ Tabel transaksi memakai pagination, filter, dan sort **di server**. Tabel hanya 
 
 Form memakai React Hook Form dan schema Zod untuk pesan cepat dan typing; `register` untuk input native, `Controller` untuk komponen yang mengelola `value/onChange` sendiri. Schema UI memvalidasi format, batas dasar, dan dependensi field; server tetap menguji scope, price, credit, tax, stok, SoD, dan total. Saat submit, bangun payload OpenAPI yang eksplisit, termasuk `version`/`If-Match` dan `Idempotency-Key` pada command kritis. Lihat [integrasi React Hook Form](https://react-hook-form.com/integrations) dan [Zod safeParse](https://zod.dev/basics).
 
-Gunakan token semantik Metronic/Tailwind untuk warna/status/spacing; jangan menyebarkan hex dan style ad hoc di fitur. Wrapper lokal menetapkan API komponen agar upgrade vendor tidak mengubah setiap feature. Lihat [dokumentasi Metronic Next.js](https://docs.keenthemes.com/metronic-nextjs) dan [Tailwind theme variables](https://tailwindcss.com/docs/theme). Semua aksi punya label, focus state, keyboard flow, empty/loading/error state, dan kontras yang diperiksa; format tanggal dalam timezone terpilih, simpan timestamp UTC, dan tampilkan currency/UOM sumber dengan jelas.
+Gunakan token semantik Tailwind untuk warna/status/spacing; jangan menyebarkan hex dan style ad hoc di fitur. Wrapper lokal menetapkan API komponen agar pembaruan template tidak mengubah setiap feature. Lihat [source shadcn-admin](https://github.com/satnaing/shadcn-admin) dan [Tailwind theme variables](https://tailwindcss.com/docs/theme). Semua aksi punya label, focus state, keyboard flow, empty/loading/error state, dan kontras yang diperiksa; format tanggal dalam timezone terpilih, simpan timestamp UTC, dan tampilkan currency/UOM sumber dengan jelas.
 
 ## 6. API dan error UX
 

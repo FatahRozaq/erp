@@ -1,6 +1,6 @@
 # Peta struktur kode saat seluruh roadmap ERP terpenuhi
 
-**Status:** gambaran target, bukan daftar direktori yang harus dibuat sekarang. **Cakupan:** Foundation, MVP, Phase 2, Phase 3, dan Enterprise Expansion dalam [PRD](../enterprise-erp-prd.md) dan [indeks roadmap](../roadmap/README.md). Stack aktif tetap Go/Echo v5, Metronic Next.js, Flutter, dan PostgreSQL. Struktur ini merinci [standar repository](repository-standards.md); aturan perilaku dan ownership tetap berada di PRD, FSD, kontrak, ADR, serta standar tiap stack.
+**Status:** gambaran target, bukan daftar direktori yang harus dibuat sekarang. **Cakupan:** Foundation, MVP, Phase 2, Phase 3, dan Enterprise Expansion dalam [PRD](../enterprise-erp-prd.md) dan [indeks roadmap](../roadmap/README.md). Stack aktif tetap Go/Echo v5, Next.js + shadcn-admin, Flutter, dan PostgreSQL. Struktur ini merinci [standar repository](repository-standards.md); aturan perilaku dan ownership tetap berada di PRD, FSD, kontrak, ADR, serta standar tiap stack.
 
 Pohon berikut menunjukkan **lokasi modul bila capability terkait sudah diimplementasikan**. Subfolder hanya dibuat ketika berisi kode atau migration nyata. Akhir roadmap tidak otomatis berarti setiap capability menjadi service tersendiri: [FSD Enterprise Expansion](../roadmap/enterprise-expansion-fsd.md#5-selective-service-split) menjadikan service split keputusan berbasis bukti. Nama final subpaket yang lebih rinci boleh disesuaikan saat slice dibuat, tetapi owner dan kontraknya tidak boleh berubah diam-diam.
 
@@ -114,13 +114,13 @@ Pola `domain/application/adapters` dipakai saat modul cukup kompleks; package ke
 
 DB role runtime tidak diberi DDL; migration dijalankan oleh runner/role deploy terpisah. Function DB dipakai untuk invariant lokal atomik, sedangkan authorization dan orkestrasi lintas owner tetap di Go. Lihat [standar migration dan function](database-functions-and-migrations.md).
 
-## 2. Frontend Metronic Next.js
+## 2. Frontend Next.js + shadcn-admin
 
 ```text
 frontend/nextjs/
 ├── AGENTS.md
 ├── package.json, lockfile, tsconfig.json, next.config.ts
-├── vendor-manifest.json              # source, versi, hash, lisensi Metronic
+├── vendor-manifest.json              # source, versi, hash, lisensi MIT shadcn-admin
 ├── public/                            # aset publik yang benar-benar dipakai
 ├── src/
 │   ├── app/
@@ -153,15 +153,15 @@ frontend/nextjs/
 │   │   ├── {sales-invoices,vendor-invoices,payments,bank-reconciliation,fx}/
 │   │   ├── {journals,periods,budgets,expenses,intercompany}/
 │   │   └── {manufacturing,pos,tms,reports,report-schedules,analytics,forecasting,approvals,exceptions,search,connectors}/
-│   ├── components/{ui,layout}/       # wrapper Metronic dan shell milik repo
+│   ├── components/{ui,layout}/       # wrapper shadcn-admin dan shell milik repo
 │   ├── lib/{api,auth,errors,format,query,telemetry}/
 │   ├── generated/openapi/             # hasil generator; tidak diedit manual
-│   ├── vendor/metronic/               # aset berlisensi terisolasi
+│   ├── vendor/shadcn-admin/               # source MIT yang diadaptasi terisolasi
 │   └── styles/
 └── tests/{e2e,accessibility}/
 ```
 
-`{...}` hanya notasi ringkas. Di `src/app`, folder adalah URL/layout dan file `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, atau `route.ts` mengikuti aturan framework; kompleksitas fitur tidak diletakkan di route. [Dokumentasi Next.js](https://nextjs.org/docs/app/getting-started/project-structure) mengizinkan `src` dan menjelaskan route groups serta file khusus App Router. `src/features/sales-orders/`, misalnya, berisi `api/`, `components/`, `hooks/`, `schemas/`, `model/`, dan `tests/` seperti [standar frontend](frontend-standards.md). Semua browser mutation melalui BFF dan Go gateway; generated OpenAPI, vendor Metronic, dan kode ERP tetap terpisah. Folder `tests/` hanya untuk perjalanan lintas fitur; unit/component tests dekat fiturnya.
+`{...}` hanya notasi ringkas. Di `src/app`, folder adalah URL/layout dan file `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, atau `route.ts` mengikuti aturan framework; kompleksitas fitur tidak diletakkan di route. [Dokumentasi Next.js](https://nextjs.org/docs/app/getting-started/project-structure) mengizinkan `src` dan menjelaskan route groups serta file khusus App Router. `src/features/sales-orders/`, misalnya, berisi `api/`, `components/`, `hooks/`, `schemas/`, `model/`, dan `tests/` seperti [standar frontend](frontend-standards.md). Semua browser mutation melalui BFF dan Go gateway; generated OpenAPI, source template shadcn-admin, dan kode ERP tetap terpisah. Folder `tests/` hanya untuk perjalanan lintas fitur; unit/component tests dekat fiturnya.
 
 ## 3. Mobile Flutter
 

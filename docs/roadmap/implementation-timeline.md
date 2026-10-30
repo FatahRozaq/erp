@@ -14,9 +14,9 @@
 
 | Jendela | Fase / work order | Hasil utama | Gate akhir |
 |---|---|---|---|
-| W01–04 | **T0 Mobilisasi** · R-01–R-02 | Backlog vertical slice, repo ownership, environment, data sintetis, daftar aset/konfigurasi nyata | Scope pilot, kapasitas, risiko, dan dependency tercatat; aset Metronic/IdP/provider punya owner dan tanggal target |
+| W01–04 | **T0 Mobilisasi** · R-01–R-02 | Backlog vertical slice, repo ownership, environment, data sintetis, daftar aset/konfigurasi nyata | Scope pilot, kapasitas, risiko, dan dependency tercatat; source template shadcn-admin/IdP/provider punya owner dan tanggal target |
 | W05–12 | **T1 Platform teknik** · B-01–B-03 | Scaffold Go/Echo, Next.js/Flutter, CI, DB migration/function tooling, outbox/inbox, gateway/OIDC, telemetry, backup awal | Build/CI, auth scope, idempotency, migration+function+restore dan failure path terbukti pada slice teknis |
-| W13–24 | **T2 Foundation bisnis** · F-01–F-04 | Org/IAM, master SKU/UOM/party, policy/numbering/price/tax/document, Metronic BFF shell dan mobile online dasar | User scoped dapat bekerja pada entity pilot; master/policy versioned, authz/audit dan UI keyboard/accessibility dasar lulus |
+| W13–24 | **T2 Foundation bisnis** · F-01–F-04 | Org/IAM, master SKU/UOM/party, policy/numbering/price/tax/document, shadcn-admin BFF shell dan mobile online dasar | User scoped dapat bekerja pada entity pilot; master/policy versioned, authz/audit dan UI keyboard/accessibility dasar lulus |
 | W25–52 | **T3 MVP vertical slices** · M-01–M-08 | PR/PO→GRN→stock/GRNI/AP; SO/credit→reservation→WMS/POD→AR/payment/GL; import/report/notification dasar | O2C/P2P/R2R end-to-end dengan partial, duplicate, failure/retry dan koreksi; stock/GL unexplained delta=0 |
 | W53–60 | **T4 Pilot MVP** · M-09–M-10 | UAT, data migration rehearsal, security/performance/restore, cutover satu entity, 2–4 minggu hypercare | Product/Controller/Ops/Security sign-off; KPI dan support incident; keputusan lanjut multi branch |
 | W61–80 | **T5 Phase 2 Operations** · P2-01–P2-05 | RFQ/blanket, sales/purchase return, transfer/bin/wave/count, route/visit, mobile offline/push, expanded reports | Return/stock reconciliation nol unexplained; offline sync target PRD pada jaringan pilot; multi branch rollout terkontrol |
@@ -32,7 +32,7 @@ Jendela fase adalah **timebox perencanaan**, bukan izin menutup pekerjaan dengan
 
 - [x] Backlog dipecah menurut [work order](ai-work-orders.md), owner, dependency, acceptance dan perkiraan ukuran. Bukti R-01: [BL-001](implementation-backlog.md) dan [audit](r-01-audit.md); [REG-001](r-02-dependency-register.md) mencatat PIC/kapasitas aktual yang masih perlu ditunjuk.
 - [ ] Tenant/entity pilot, data sintetis, volume/perangkat/jaringan uji dan baseline KPI dicatat. [REG-001](r-02-dependency-register.md) mencatat fixture desain dan input aktual yang belum diberikan; item ini tetap terbuka sampai profil pilot dan rencana baseline KPI disepakati.
-- [ ] Lisensi/source Metronic, IdP, policy tax/COA/credit dan provider eksternal mempunyai owner serta jalur perolehan; yang belum tersedia ditandai dependency konkret. REG-001 mencatat owner role, jalur, target relatif dan fallback; PIC aktual dan beberapa pilihan provider/lisensi masih perlu ditetapkan.
+- [ ] Source resmi dan lisensi MIT shadcn-admin, IdP, policy tax/COA/credit dan provider eksternal mempunyai owner serta jalur perolehan; yang belum tersedia ditandai dependency konkret. REG-001 mencatat owner role, jalur, target relatif dan fallback; PIC aktual serta beberapa pilihan provider masih perlu ditetapkan. Commit template dipin saat F-04.
 - [x] Semua perubahan scope pada baseline R-01 menautkan PRD/FSD/kontrak/data/UX/QA terkait melalui [TR-001](requirement-traceability.md) dan profil BL-001. Gap detail ditandai NEEDS_SPEC; aturan ini diperiksa ulang untuk setiap perubahan scope berikutnya.
 
 ### G1 — Platform teknik ke Foundation (akhir W12)
@@ -40,7 +40,7 @@ Jendela fase adalah **timebox perencanaan**, bukan izin menutup pekerjaan dengan
 - [ ] CI memeriksa format/lint/build, migration **termasuk function/grant PostgreSQL**, OpenAPI/event, dependency scan dan tes yang sudah ada.
 - [ ] Echo HTTP boundary, OIDC/workload auth, tenant/entity scope, stable error, ETag/idempotency dan audit bekerja dalam uji integrasi.
 - [ ] PostgreSQL owner DB, function DB berversi dengan privilege minimum, outbox/inbox/JetStream replay, backup/restore awal, tracing/log redaksi dan dashboard error/pending terbukti.
-- [ ] Metronic source yang digunakan mempunyai manifest versi/hash/lisensi; jika belum ada, pekerjaan UI vendor menunggu sementara BFF/kontrak/feature independen tetap dapat berjalan.
+- [ ] Batas wrapper UI dan sumber shadcn-admin MIT terdokumentasi; adaptasi visual, manifest commit/hash/file dan uji aksesibilitas diselesaikan pada F-04/G2.
 
 ### G2 — Foundation ke MVP (akhir W24)
 

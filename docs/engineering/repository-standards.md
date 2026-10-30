@@ -1,6 +1,6 @@
 # Enterprise ERP — Standar Repository dan Kontrak Lintas Aplikasi
 
-**Status:** baseline desain, diperbarui 29 Oktober 2026. **Berlaku untuk:** backend Go/Echo v5, web Metronic Next.js, mobile Flutter, kontrak API/event, database migration/function, dan infrastruktur. Dokumen ini menerjemahkan [Master PRD](../enterprise-erp-prd.md) menjadi aturan struktur kode. Detail implementasi berada pada [backend](backend-standards.md), [database](database-standards.md), [migration/function DB](database-functions-and-migrations.md), [frontend](frontend-standards.md), dan [mobile](mobile-standards.md). Keputusan bisnis yang belum final dicatat di [Implementation Readiness](../implementation-readiness.md).
+**Status:** baseline desain, diperbarui 29 Oktober 2026. **Berlaku untuk:** backend Go/Echo v5, web Next.js dengan acuan UI shadcn-admin MIT, mobile Flutter, kontrak API/event, database migration/function, dan infrastruktur. Dokumen ini menerjemahkan [Master PRD](../enterprise-erp-prd.md) menjadi aturan struktur kode. Detail implementasi berada pada [backend](backend-standards.md), [database](database-standards.md), [migration/function DB](database-functions-and-migrations.md), [frontend](frontend-standards.md), dan [mobile](mobile-standards.md). Keputusan bisnis yang belum final dicatat di [Implementation Readiness](../implementation-readiness.md).
 
 ## 1. Prinsip yang wajib dijaga
 
@@ -31,7 +31,7 @@ erp/
 ├── frontend/
 │   ├── AGENTS.md                    # Aturan frontend lintas stack
 │   └── nextjs/
-│       ├── AGENTS.md                # Metronic Next.js App Router, TypeScript
+│       ├── AGENTS.md                # Next.js App Router + shadcn-admin, TypeScript
 │       └── src/                     # Dibuat saat scaffold web
 ├── mobile/
 │   ├── AGENTS.md                    # Aturan mobile lintas stack
@@ -62,7 +62,9 @@ erp/
 
 Setiap service Go memakai Echo v5 hanya pada adapter HTTP menurut [ADR-0003](../adr/0003-echo-metronic.md), dengan `go.mod` sendiri jika benar-benar deployable independen; `go.work` di `backend/golang/` boleh membantu pengembangan lokal multi-module, tetapi CI membangun tiap service secara terisolasi agar dependency eksplisit. [Referensi Go workspaces](https://go.dev/ref/mod#workspaces). Konvensi `src/app` dan file khusus App Router mengikuti [dokumentasi struktur Next.js](https://nextjs.org/docs/app/getting-started/project-structure). Flutter menggunakan pemisahan UI dan data per fitur sesuai [panduan arsitektur Flutter](https://docs.flutter.dev/app-architecture/guide).
 
-Direktori level pertama memisahkan kanal produk; direktori level kedua memisahkan implementasi teknologi. [Peta struktur seluruh modul](target-module-structure.md) menunjukkan bentuk saat roadmap selesai. Bila kelak menilai stack lain, buat direktori saudara seperti `backend/<stack-baru>/`, `frontend/<stack-baru>/`, atau `mobile/<stack-baru>/` beserta standar stack dan ADR-nya. Implementasi baru harus tetap memakai PRD, ownership, kontrak, dan gate yang sama; baseline Go/Echo, Metronic Next.js, dan Flutter berubah hanya melalui keputusan terpisah. Jangan membagi runtime satu aplikasi di antara dua direktori stack.
+Direktori level pertama memisahkan kanal produk; direktori level kedua memisahkan implementasi teknologi. [Peta struktur seluruh modul](target-module-structure.md) menunjukkan bentuk saat roadmap selesai. Bila kelak menilai stack lain, buat direktori saudara seperti `backend/<stack-baru>/`, `frontend/<stack-baru>/`, atau `mobile/<stack-baru>/` beserta standar stack dan ADR-nya. Implementasi baru harus tetap memakai PRD, ownership, kontrak, dan gate yang sama; baseline Go/Echo, Next.js dengan acuan shadcn-admin, dan Flutter berubah hanya melalui keputusan terpisah. Jangan membagi runtime satu aplikasi di antara dua direktori stack.
+
+**Repository dan deployment:** satu repository Git cukup untuk seluruh source dan kontrak. Backend terdiri dari lima deployable independen (`gateway`, `platform`, `commercial`, `operations`, `finance`), frontend Next.js satu deployable, dan migration/job database dijalankan terpisah terhadap PostgreSQL yang di-host/dioperasikan sebagai layanan tersendiri. Satu repository tidak berarti satu container atau satu server. CI membangun artefak per path/owner, memberi tag image dari commit yang sama, lalu deployment tiap layanan menggunakan image, konfigurasi, secret, health check, dan rollback sendiri. Migration dijalankan sekali secara terkontrol sebelum versi aplikasi yang membutuhkannya; database persisten tidak dibuat ulang pada setiap deploy dan secret tidak masuk Git. Mobile memakai pipeline build/distribusi sendiri dari repository yang sama. Jumlah repository baru dievaluasi jika ownership, kontrol akses source, atau lifecycle rilis benar-benar berbeda.
 
 ## 3. Ownership dan dependency rules
 

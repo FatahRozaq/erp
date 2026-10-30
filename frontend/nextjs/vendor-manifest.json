@@ -1,8 +1,11 @@
 {
-  "status": "not-acquired",
-  "product": "Metronic Next.js",
+  "status": "selected-not-integrated",
+  "product": "satnaing/shadcn-admin",
   "version": null,
-  "source": null,
+  "source": "https://github.com/satnaing/shadcn-admin",
+  "license": "MIT",
+  "license_url": "https://github.com/satnaing/shadcn-admin/blob/main/LICENSE",
+  "source_commit": null,
   "sha256": null,
   "license_evidence": null,
   "imported_files": []

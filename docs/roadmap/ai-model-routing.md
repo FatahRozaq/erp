@@ -34,7 +34,7 @@
 | F-01 — Organisasi dan IAM | Astra | High | Tenant/entity isolation, role/scope, revoke, dan SoD adalah fondasi keamanan. |
 | F-02 — Master data | Sol | High | SKU/UOM/party, versioned publish, import, dan referensi lintas owner. |
 | F-03 — Kebijakan dasar | Astra | High | Approval, tax/price/credit, numbering atomik, dokumen privat, fail closed. |
-| F-04 — Klien dasar | Sol | High | BFF/session/CSRF, wrapper Metronic, generated types, dan Flutter online shell. |
+| F-04 — Klien dasar | Sol | High | BFF/session/CSRF, wrapper shadcn-admin, generated types, dan Flutter online shell. |
 
 ## T3 — MVP vertical slices
 
