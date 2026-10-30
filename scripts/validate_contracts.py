@@ -11,11 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
-    specs = sorted((ROOT / "contracts/openapi").glob("*/v1.yaml"))
-    schemas = sorted((ROOT / "contracts/events").glob("**/v1.json"))
+    specs = sorted((ROOT / "contracts/openapi").rglob("*.yaml"))
+    schemas = sorted((ROOT / "contracts/events").rglob("v*.json"))
     examples = sorted((ROOT / "contracts/events/examples").glob("*.json"))
-    assert len(specs) == 16, f"expected 16 OpenAPI specs; found {len(specs)}"
-    assert len(schemas) == len(examples) == 43, "expected 43 event schemas/examples"
+    assert len(specs) >= 16, f"expected at least 16 OpenAPI specs; found {len(specs)}"
+    assert len(schemas) == len(examples) and len(schemas) >= 43, "event schemas/examples differ or baseline shrank"
     for spec in specs:
         validate_spec(yaml.safe_load(spec.read_text()))
     by_title = {}

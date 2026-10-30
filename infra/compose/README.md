@@ -1,6 +1,6 @@
 # Local infrastructure for B-01
 
-Run from repository root:
+Install `podman-compose==1.6.0` from `requirements.txt` if the Compose provider is not already available. Run from repository root:
 
 ```sh
 podman-compose -f infra/compose/compose.yaml up --build -d

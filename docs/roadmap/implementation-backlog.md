@@ -48,8 +48,8 @@ Setiap blok work order memberikan **profil sumber yang diwarisi semua slice**: F
 
 | Slice / outcome untuk actor | Requirement PRD | Prasyarat | Size / status | Acceptance spesifik dan risiko |
 |---|---|---|---|---|
-| **B-01.1 — Clean bootstrap tiga stack** | NFR-MAIN-01 | R-02.2 | L / PLANNED | Developer menjalankan skeleton Echo, Next.js dan Flutter di folder stack; lockfile dan README reproducible, source vendor hanya bila berizin. **Risiko:** Toolchain dan vendor template. |
-| **B-01.2 — CI dan kontrak di clean workspace** | NFR-MAIN-01, NFR-INT-01 | B-01.1 | M / PLANNED | Build/lint/format/contract/examples dan generated clients drift diuji; CODEOWNERS role dipetakan ke reviewer aktual saat tersedia; CI tanpa secret riil. **Risiko:** Generated client drift. |
+| **B-01.1 — Clean bootstrap tiga stack** | NFR-MAIN-01 | R-02.2 | L / DONE | Developer menjalankan skeleton Echo, Next.js dan Flutter di folder stack; lockfile dan README reproducible, source vendor hanya bila berizin. **Bukti:** [B-01](b-01-evidence.md) clean clone, build dan smoke Compose. **Risiko:** Native APK/IPA dan Metronic berizin menunggu tahap terkait. |
+| **B-01.2 — CI dan kontrak di clean workspace** | NFR-MAIN-01, NFR-INT-01 | B-01.1 | M / DONE | Build/lint/format/contract/examples dan generated web types drift diuji; CODEOWNERS mencatat reviewer sementara dan owner domain aktual masih perlu diikat saat tersedia; CI tanpa secret riil. **Bukti:** [B-01](b-01-evidence.md) dan `.github/workflows/ci.yml`. **Risiko:** Hosted CI belum berjalan tanpa remote. |
 
 ## B-02
 

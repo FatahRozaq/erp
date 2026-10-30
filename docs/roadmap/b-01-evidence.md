@@ -21,11 +21,14 @@
 | `python scripts/check_migration_inventory.py` | 11 migration SQL tetap ada |
 | SHA-256 sebelum/sesudah B-01 untuk 11 migration dan seluruh 104 file kontrak | Identik |
 | `podman-compose ... config` dan `up --build -d` | 10 container berjalan; Postgres healthy, Redis PONG, MinIO/Go/web HTTP 200 |
-| Clone Git bersih dan perintah CI setara | Dicatat setelah verifikasi akhir |
+| `actionlint` dan pencarian `secrets.*` pada workflow | Lulus; tidak ada secret repository yang diperlukan |
+| `npm audit --audit-level=high` | Lulus, 0 vulnerability pada lockfile saat pengujian |
+| Clone Git bersih dan perintah CI setara | Go, Next.js, Flutter, kontrak, dan inventaris migration lulus |
 
 ## Batas bukti
 
 - Hosted GitHub Actions belum berjalan karena repository lokal belum memiliki remote. Native APK/IPA belum dibangun di host ini karena Android SDK/Xcode tidak tersedia; build Flutter web membuktikan kompilasi app shell, sedangkan platform native telah dihasilkan dari SDK yang sama.
+- Pemeriksaan migration awal memakai SHA-256 manifest sehingga B-02 boleh menambah migration tanpa mengubah 11 file baseline. Validator kontrak memeriksa semua versi YAML/JSON yang ditambahkan, bukan hanya jumlah awal.
 - `/health/live` hanya liveness proses, bukan readiness DB/broker. Migrasi SQL belum dijalankan oleh runtime; B-02 akan membangun runner, function/grant test, owner DB, event, dan backup/restore.
 - Metronic menunggu source/lisensi, sesuai R-02 dan F-04. CODEOWNERS harus diverifikasi terhadap reviewer GitHub aktual ketika repository remote dan PIC tim ditetapkan.
 - Input pilot dan G0 pada R-02 tetap terbuka untuk aktivasi nyata. B-01 hanya memerlukan fixture/konfigurasi development sintetis.
