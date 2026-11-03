@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "owners": {
+    "platform": {
+      "database": "erp_platform",
+      "deploy_role": "erp_platform_deploy",
+      "runtime_role": "erp_platform_runtime",
+      "schemas": [
+        {"name": "platform_runtime", "depends_on": []},
+        {"name": "master", "depends_on": ["platform_runtime"]}
+      ]
+    },
+    "commercial": {
+      "database": "erp_commercial",
+      "deploy_role": "erp_commercial_deploy",
+      "runtime_role": "erp_commercial_runtime",
+      "schemas": [
+        {"name": "commercial_runtime", "depends_on": []},
+        {"name": "purchase", "depends_on": ["commercial_runtime"]},
+        {"name": "sales", "depends_on": ["commercial_runtime"]}
+      ]
+    },
+    "operations": {
+      "database": "erp_operations",
+      "deploy_role": "erp_operations_deploy",
+      "runtime_role": "erp_operations_runtime",
+      "schemas": [
+        {"name": "operations_runtime", "depends_on": []},
+        {"name": "inventory", "depends_on": ["operations_runtime"]}
+      ]
+    },
+    "finance": {
+      "database": "erp_finance",
+      "deploy_role": "erp_finance_deploy",
+      "runtime_role": "erp_finance_runtime",
+      "schemas": [
+        {"name": "finance_runtime", "depends_on": []},
+        {"name": "accounting", "depends_on": ["finance_runtime"]},
+        {"name": "finance", "depends_on": ["accounting"]}
+      ]
+    }
+  }
+}
