@@ -63,7 +63,7 @@ Hasil: **11 baseline/21 total**, **16 OpenAPI + 43 event schema + 43 examples**,
 
 ## CI dan batas bukti
 
-[Workflow](../../.github/workflows/ci.yml) menambah job `database` dengan PostgreSQL 18.1, bootstrap sintetis, format/vet/test/build, apply/rerun/status empat owner. Job container menggunakan client PostgreSQL 18.1 agar pg_dump/pg_restore kompatibel dengan service PostgreSQL 18.1. Bukti run hosted dicatat setelah PR berjalan; konfigurasi workflow saja bukan bukti lulus hosted CI.
+[Workflow](../../.github/workflows/ci.yml) menambah job `database` dengan PostgreSQL 18.1, bootstrap sintetis, format/vet/test/build, apply/rerun/status empat owner. Job container menggunakan client PostgreSQL 18.1 agar pg_dump/pg_restore kompatibel dengan service PostgreSQL 18.1. Bukti hosted: [run 41645971316](https://github.com/FatahRozaq/erp/actions/runs/41645971316) pada commit `6d1e63a` **lulus 10/10 job**: database, contracts, sqlc, lima service Go, web dan mobile. Job database membuktikan fresh bootstrap/apply/rerun/status serta suite PostgreSQL pada runner GitHub; tidak memerlukan secret nyata. [PR #2](https://github.com/FatahRozaq/erp/pull/2) menampung perubahan, belum di-merge.
 
 Run awal [41645566361](https://github.com/FatahRozaq/erp/actions/runs/41645566361) menemukan CA certificates belum tersedia di job container sehingga download Go gagal dengan `x509: certificate signed by unknown authority` sebelum tes. Workflow diperbaiki dengan instalasi `ca-certificates`; verifikasi TLS tetap aktif.
 
