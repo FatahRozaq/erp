@@ -24,6 +24,8 @@ File yang sudah diaplikasikan **immutable**. Function definition dan grant yang 
 
 Perubahan function yang tetap kompatibel pada parameter, return, permission dan makna boleh `CREATE OR REPLACE FUNCTION` dalam migration **baru**. Mengubah signature, return type, error contract atau makna hasil adalah breaking: buat `_v2`, uji v1/v2 paralel, pindahkan caller, tunggu semua instance lama berhenti, lalu drop v1 pada migration contract terpisah. PostgreSQL menjelaskan batas `OR REPLACE`, ownership dan grant yang dipertahankan di [CREATE FUNCTION](https://www.postgresql.org/docs/18/sql-createfunction.html). Jangan otomatis `DROP CASCADE` pada function yang dipakai view/trigger.
 
+Implementasi runner B-02.1, role, ledger dan pemulihan mengikuti [ADR-0007](../adr/0007-migration-runner.md) dan [runbook migration](../operations/database-migrations.md). Sepuluh migration tambahan memperketat metadata/audit/grant baseline; function bisnis di bawah tetap dibangun pada slice pemiliknya.
+
 ## 2. Function yang direncanakan per owner
 
 | Owner dan fase | Function DB minimal yang dinilai saat slice dibuat | Invariant atomik dan caller |

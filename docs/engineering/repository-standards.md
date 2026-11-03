@@ -13,7 +13,7 @@
 
 ## 2. Struktur folder repository yang dituju
 
-Pohon ini adalah **target setelah scaffold**; repository sudah memisahkan `backend/database`, `backend/golang`, `frontend/nextjs`, dan `mobile/flutter`, serta berisi dokumen dan kontrak OpenAPI/event. Skeleton aplikasi B-01 sudah ada; modul bisnis dan migration runner belum diimplementasikan. Folder/domain di dalam tiap stack ditambah saat slice terkait dikerjakan, sehingga tidak perlu membuat folder kosong. `AGENTS.md` di root dan direktori stack mengarahkan agent ke requirement yang berlaku.
+Pohon ini adalah **target setelah scaffold**; repository sudah memisahkan `backend/database`, `backend/golang`, `frontend/nextjs`, dan `mobile/flutter`, serta berisi dokumen dan kontrak OpenAPI/event. Skeleton aplikasi B-01 sudah ada; modul bisnis belum diimplementasikan; tool migration terpisah tersedia pada B-02.1. Folder/domain di dalam tiap stack ditambah saat slice terkait dikerjakan, sehingga tidak perlu membuat folder kosong. `AGENTS.md` di root dan direktori stack mengarahkan agent ke requirement yang berlaku.
 
 ```text
 erp/
@@ -27,6 +27,7 @@ erp/
 │   │   └── sqlc.yaml                # Input SQL dan output Go per owner
 │   └── golang/
 │       ├── AGENTS.md                # Go + Echo v5
+│       ├── tools/migrate/           # CLI deploy database, module Go terpisah
 │       └── services/
 │           ├── gateway/             # Edge API dan policy enforcement
 │           ├── platform/            # Identity, organization, master, policy

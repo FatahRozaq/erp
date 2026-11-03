@@ -7,4 +7,4 @@ Backend aktif ada di `backend/golang/services/<owner>/`. Baca [standar backend G
 - Tempatkan migration di `backend/database/migrations/<schema>/` dan query sqlc di `backend/database/queries/<schema>/`; ikuti [instruksi database](../database/AGENTS.md). Function PostgreSQL yang dipanggil Go memiliki signature typed, grant minimum, wrapper typed di adapter PostgreSQL, dan integration/concurrency test pada PostgreSQL asli. Jangan menaruh DDL di handler, startup, atau SQL manual produksi.
 - Uji auth/scope, idempotency, `If-Match`/version, error aman, duplicate/retry, race, audit/outbox atomik, dan reconciliation untuk command yang berubah.
 
-`services/` berisi aplikasi Go; source SQL kanonik berada di `backend/database/`. Tambahkan modul aplikasi, query dan migration hanya saat slice terkait dikerjakan.
+`tools/migrate/` adalah module Go terpisah untuk deploy migration, bukan dependency API/worker; ikuti [runbook](../../docs/operations/database-migrations.md). `services/` berisi aplikasi Go; source SQL kanonik berada di `backend/database/`. Tambahkan modul aplikasi, query dan migration hanya saat slice terkait dikerjakan.

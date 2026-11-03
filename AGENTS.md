@@ -30,3 +30,15 @@ Jika sumber bertentangan atau sebuah perilaku belum dijelaskan, identifikasi let
 Implementasi aktif berada di `backend/golang/` (Go + Echo v5), `frontend/nextjs/` (Next.js dengan acuan UI shadcn-admin MIT), dan `mobile/flutter/` (Flutter). `contracts/` dan `docs/` tetap bersama sebagai sumber lintas stack. Alternatif teknologi kelak memakai direktori saudara baru dan ADR/standar stack tersendiri; penambahan direktori tidak mengubah requirement maupun pilihan implementasi aktif.
 
 Postman CLI tersedia untuk pekerjaan API bila diperlukan; OpenAPI di repository tetap sumber kontrak.
+
+## Skill wajib sesuai tugas
+
+Baca [panduan dan inventaris skill](docs/engineering/agent-skills.md). Muat hanya `SKILL.md` dan referensi yang relevan; jangan memuat seluruh katalog pada setiap turn.
+
+- Coding: `ponytail` untuk perubahan terkecil yang memenuhi seluruh acceptance; gunakan pola/layer repository yang sudah ada. `caveman` menjaga laporan singkat dan jelas, tanpa memadatkan kode, requirement, bukti, atau menghilangkan gap.
+- Dokumentasi library/framework: `context7-cli`, cocokkan versi dengan lockfile; bila akses gagal, gunakan dokumentasi resmi dan laporkan keterbatasannya. Jangan mengirim secret, data tenant, atau source privat ke pencarian.
+- UI Next.js/Flutter: `ui-ux-pro-max`; Next.js juga memakai `vercel-react-best-practices`. Pertahankan acuan shadcn-admin, token desain, FSD/UX dan aksesibilitas. Verifikasi hasil nyata pada viewport serta state yang relevan.
+- Migrasi: `migration`; debugging ambigu: `investigate-first`; perbaikan kecil: `surgical-patch`; restrukturisasi: `safe-refactor`; verifikasi akhir: `verify-and-stop`. Pilih sesuai pekerjaan, hindari bacaan duplikat.
+- Pekerjaan keamanan Go/TypeScript: `security-best-practices` sesuai scope. Pekerjaan API mengikuti `postman:api-engineer` atau skill Postman spesifik; kontrak repository tetap kanonik.
+
+Skill membantu eksekusi dan tidak mengganti requirement, acceptance, keamanan, standar branch, atau scope work order. Jika skill belum tersedia pada mesin baru, ikuti inventaris instalasi dan nyatakan gap; jangan mengklaim sudah memakainya. Instalasi baru tersedia pada turn berikutnya.

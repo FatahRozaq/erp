@@ -42,6 +42,8 @@ backend/golang/services/operations/
 └── README.md                       # cara run, env, owner, kontrak, runbook link
 ```
 
+Tool deploy migration tersedia di `backend/golang/tools/migrate/` sebagai module Go terpisah; service tidak mengimpornya. Lihat [runbook](../operations/database-migrations.md).
+
 Migration dan query untuk service ini berada di `backend/database/migrations/<schema>/` dan `backend/database/queries/<schema>/`; kode sqlc yang dihasilkan berada di `internal/<module>/adapters/postgres/sqlc/`. Pemisahan ini dijelaskan di [ADR-0006](../adr/0006-database-sql-layout.md).
 
 `cmd` hanya membangun dependensi dan menjalankan server/worker. `domain` berisi aturan yang dapat diuji tanpa HTTP, broker, atau database. `application` mengorkestrasi satu use case, transaksi, otorisasi aksi dan publikasi outbox; definisikan interface kecil di package pemakai. Adapter menerjemahkan transport/SQL/broker ke tipe domain; DTO transport dan row SQL tidak dibocorkan ke domain. Dependency mengarah `adapter → application → domain`, bukan sebaliknya. Cross-domain request melalui port/contract, bukan pemanggilan repository milik modul lain. Untuk pembacaan dashboard, proyeksi terpisah boleh memakai CQRS; CRUD biasa tetap sederhana sesuai PRD §28.

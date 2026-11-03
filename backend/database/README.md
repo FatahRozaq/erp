@@ -11,6 +11,10 @@ Direktori ini berada setara dengan `backend/golang/`. `migrations/<schema>/` ada
 
 `runtime` lama adalah empat schema berbeda; karena itu foldernya memakai nama `platform_runtime`, `commercial_runtime`, `operations_runtime`, dan `finance_runtime`. Nomor migration dihitung per schema. Sebelas file baseline dipindahkan tanpa mengubah isi; SHA-256-nya dijaga oleh `scripts/check_migration_inventory.py`. Satu pengecualian baseline: `migrations/accounting/000001_grni_posting.up.sql` juga membuat `finance.posting_intents` dan schema `finance`. Karena checksum harus tetap, runner B-02 menerapkan `accounting/000001` sebelum `finance/000001`; migration baru hanya mengubah schema foldernya sendiri. Lihat [ADR-0006](../../docs/adr/0006-database-sql-layout.md).
 
+## Migration runner
+
+`plan.json` memetakan empat owner/database/role dan dependency schema. `bootstrap/000001_local_owners.sql` menyediakan database/role sintetis lokal; bukan provisioning produksi. Sepuluh migration tambahan memperketat metadata, audit, function dan grant tanpa mengubah 11 baseline. Perintah apply/status dan pemulihan ada di [runbook migration](../../docs/operations/database-migrations.md) serta [ADR-0007](../../docs/adr/0007-migration-runner.md).
+
 ## sqlc
 
 `sqlc.yaml` memakai format konfigurasi v2. Mapping pertama untuk `master` memakai `queries/master/uoms.sql` dan menghasilkan Go pada adapter Platform. Tambah mapping per schema hanya ketika query pertama tersedia; tiap mapping menunjuk ke `migrations/<schema>/`, `queries/<schema>/` dan output package service pemiliknya. Jalankan dari folder ini:
@@ -19,6 +23,6 @@ Direktori ini berada setara dengan `backend/golang/`. `migrations/<schema>/` ada
 sqlc generate
 ```
 
-Gunakan sqlc v1.31.1 yang dipin di CI. Review perubahan query dan generated Go dalam PR yang sama; jangan edit file generated secara manual. sqlc [membaca direktori migration untuk schema dan mengabaikan down migration](https://docs.sqlc.dev/en/latest/howto/ddl.html), tetapi **tidak menjalankan migration**. Migration runner B-02 tetap memakai role deploy, checksum, lock dan rollback/forward-fix terpisah.
+Gunakan sqlc v1.31.1 yang dipin di CI. Review perubahan query dan generated Go dalam PR yang sama; jangan edit file generated secara manual. sqlc [membaca direktori migration untuk schema dan mengabaikan down migration](https://docs.sqlc.dev/en/latest/howto/ddl.html), tetapi **tidak menjalankan migration**. Runner B-02.1 di `backend/golang/tools/migrate` memakai role deploy, checksum, lock dan transaksi terpisah; lihat [runbook](../../docs/operations/database-migrations.md).
 
 Query hanya membaca/menulis tabel owner sesuai kontrak dan scope. Untuk SQL PostgreSQL yang tidak dipahami sqlc (misalnya function PL/pgSQL tertentu), gunakan wrapper typed di adapter Go dan tes terhadap PostgreSQL asli. File migration yang sudah dijalankan immutable; pemindahan folder ini tidak mengganti nomor maupun isi SQL.

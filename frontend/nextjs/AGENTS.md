@@ -6,5 +6,6 @@ Frontend aktif akan di-scaffold di `frontend/nextjs/`. Baca [standar frontend](.
 - Alur data browser → same-origin BFF Next.js → Go gateway. BFF memeriksa sesi, scope, origin/CSRF pada mutasi; gateway tetap memutuskan authorization dan aturan bisnis. Hindari catch-all proxy dan data ERP dalam cache bersama.
 - Generated OpenAPI client/type tidak diedit manual. Terapkan `guid`, decimal string, `version`/ETag, error code, dan request ID sesuai kontrak.
 - Jangan menyalin demo auth, demo data, secret, atau router Vite ke aplikasi ERP. Pin commit sumber, catat checksum/file yang diadaptasi di manifest dan pertahankan pemberitahuan lisensi MIT.
+- Untuk pekerjaan UI, gunakan `ui-ux-pro-max` dan `vercel-react-best-practices` sesuai [panduan skill](../../docs/engineering/agent-skills.md); keputusan visual tetap mengikuti FSD/UX dan shadcn-admin. Uji keyboard/focus, responsive, dan loading/empty/error/success/permission state.
 
 `src/` dibuat pada work order scaffold; struktur detailnya ada pada standar frontend.

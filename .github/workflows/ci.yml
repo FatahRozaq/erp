@@ -33,6 +33,49 @@ jobs:
           /tmp/erp-sqlc/sqlc generate
           cd ../..
           test -z "$(git status --porcelain -- backend/golang/services/platform/internal/master/adapters/postgres/sqlc)"
+  database:
+    runs-on: ubuntu-latest
+    container: postgres:18.1-bookworm
+    services:
+      postgres:
+        image: postgres:18.1-alpine
+        env:
+          POSTGRES_USER: erp_local
+          POSTGRES_PASSWORD: erp_local_only
+          POSTGRES_DB: erp_local
+        options: >-
+          --health-cmd "pg_isready -U erp_local -d erp_local"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      ERP_MIGRATION_TEST_DSN: postgres://erp_local:erp_local_only@postgres:5432/erp_local?sslmode=disable
+      CGO_ENABLED: '0'
+    steps:
+      - name: Install CA certificates for verified Go downloads
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/golang/tools/migrate/go.mod
+          cache-dependency-path: backend/golang/tools/migrate/go.sum
+      - name: Provision disposable owner databases and roles
+        run: psql "$ERP_MIGRATION_TEST_DSN" -f backend/database/bootstrap/000001_local_owners.sql
+      - name: Verify migration tool against PostgreSQL 18
+        working-directory: backend/golang/tools/migrate
+        run: |
+          test -z "$(gofmt -l cmd internal)"
+          go vet ./...
+          go test -v -count=1 -timeout=3m ./...
+          go build -o /tmp/erp-migrate ./cmd/migrate
+      - name: Apply through the deploy CLI and verify rerun
+        run: |
+          for owner in platform commercial operations finance; do
+            export ERP_MIGRATION_DSN="postgres://erp_${owner}_deploy:erp_local_only@postgres:5432/erp_${owner}?sslmode=disable"
+            /tmp/erp-migrate -owner "$owner" -action apply
+            /tmp/erp-migrate -owner "$owner" -action apply
+            /tmp/erp-migrate -owner "$owner" -action status
+          done
   go:
     runs-on: ubuntu-latest
     strategy:
