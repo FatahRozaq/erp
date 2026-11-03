@@ -50,6 +50,10 @@ jobs:
       ERP_MIGRATION_TEST_DSN: postgres://erp_local:erp_local_only@postgres:5432/erp_local?sslmode=disable
       CGO_ENABLED: '0'
     steps:
+      - name: Install CA certificates for verified Go downloads
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
